@@ -1,6 +1,12 @@
 # Created by https://www.toptal.com/developers/gitignore/api/emacs,jetbrains+all,jupyternotebooks,linux,macos,microsoftoffice,notepadpp,python,tortoisegit,vim,visualstudiocode,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=emacs,jetbrains+all,jupyternotebooks,linux,macos,microsoftoffice,notepadpp,python,tortoisegit,vim,visualstudiocode,windows
 
+### Data ###
+data/
+result/
+results/
+wandb/
+
 ### Emacs ###
 # -*- mode: gitignore; -*-
 *~
@@ -175,7 +181,8 @@ ipython_config.py
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*

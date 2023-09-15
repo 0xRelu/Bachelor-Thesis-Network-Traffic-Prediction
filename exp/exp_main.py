@@ -147,13 +147,13 @@ class Exp_Main(Exp_Basic):
             self.model_optim.zero_grad()
 
             batch_x = batch_x.float().to(self.device)
-            batch_y = batch_y.float().to(self.device)
+            batch_y = batch_y.float().to(self.device)  # gt = batch_y[:, -self.pred_len, :], len(batch_y) = self.label_len + self.pred_len
             batch_x_mark = batch_x_mark.float().to(self.device)
             batch_y_mark = batch_y_mark.float().to(self.device)
 
             # decoder input
-            dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
-            dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
+            dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()  # [:, -self.pred_len:, :] all zeros
+            dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)  # [:, :self.args.label_len, :] (end of batch_x) + [:, -self.pred_len:, :] (zeros)
 
             # encoder - decoder
             if self.args.use_amp:

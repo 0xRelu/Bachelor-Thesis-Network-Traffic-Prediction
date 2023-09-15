@@ -1,4 +1,5 @@
 import math
+import pickle
 import random
 
 import numpy as np
@@ -28,7 +29,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         self.set_type = {'train': 0, 'val': 1, 'test': 2}[flag]
 
         self.root_path = root_path
-        self.data_path = data_path
+        self.data_path = data_path[1:] if data_path.startswith('/') or data_path.startswith('\\') else data_path
 
         self.__read_data__()
 
@@ -109,10 +110,11 @@ class Dataset_Traffic_Even(Dataset):
         self.pred_len = size[2]
 
         assert flag in ['train', 'test', 'val']
+        self.flag = flag
         self.set_type = {'train': 0, 'val': 1, 'test': 2}[flag]
 
         self.root_path = root_path
-        self.data_path = data_path
+        self.data_path = data_path[1:] if data_path.startswith('/') or data_path.startswith('\\') else data_path
 
         self.__read_data__()
 
@@ -133,7 +135,7 @@ class Dataset_Traffic_Even(Dataset):
     def __read_data__(self):
         save_path = os.path.join(self.root_path, self.data_path)
         with open(save_path, 'rb') as f:
-            data = torch.load(f)
+            data = pickle.load(f)
 
         # prepare data if seq_len, label_len or pred_len does not match
         if 'shape' not in data or len(data['shape']) != 3 or \
@@ -147,11 +149,7 @@ class Dataset_Traffic_Even(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        data_seq = data['seq']
-
-        shapes = [int(0.6 * len(data_seq)), int(0.8 * len(data_seq))]
-
-        self.seq = [data_seq[:shapes[0]], data_seq[shapes[0]:shapes[1]], data_seq[shapes[1]:]][self.set_type]
+        self.seq = data[self.flag]
 
     def __getitem__(self, index):
         # <<<< x >>>>

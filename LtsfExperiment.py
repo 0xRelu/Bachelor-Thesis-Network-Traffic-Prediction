@@ -1,4 +1,6 @@
 # MY_CW_MAIN.py
+from cw2.cw_data.cw_wandb_logger import WandBLogger
+
 import wandb
 from cw2 import cluster_work
 from cw2 import experiment, cw_error
@@ -65,9 +67,9 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
 
 
 if __name__ == "__main__":
-    cw = cluster_work.ClusterWork(wrap_experiment(LtsfExperiment))
-    create_sweep(cw)
-    cw.add_logger(SweepLogger())
+    cw = cluster_work.ClusterWork(LtsfExperiment) #wrap_experiment()
+    #create_sweep(cw)
+    cw.add_logger(WandBLogger())
 
     # RUN!
     cw.run()

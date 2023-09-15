@@ -44,7 +44,7 @@ params:
   # Forecasting task
   seq_len: 336 # input sequence length
   label_len: 48 # start token length
-  # pred_len: 96 # prediction sequence length
+  pred_len: 12 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -65,11 +65,8 @@ params:
 
   # Data loader
   data: Traffic_Even
+  data_path: UNI1/univ1_pt1_even_336_48_12.pkl
 
-list:
-  data_path: [ UNI1\\univ1_pt1_even_336_48_12.pkl, UNI1\\univ1_pt1_even_336_48_24.pkl,
-               UNI1\\univ1_pt1_even_336_48_48.pkl, UNI1\\univ1_pt1_even_336_48_96.pkl ]
-  pred_len: [ 12, 24, 48, 96 ]
 
 #####################################################################################################################
 ---
@@ -105,19 +102,7 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: Non-Stationary-Transformer-Traffic-Even-v1
+    project: Non-Stationary-Transformer-Traffic-Even-v3
     group: alr
-    sweep_id: new
+    # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
-
-wandb_sweep:
-  name: Non-Stationary-Transformer-Traffic-Even-v1
-  method: grid
-  metric:
-    name: loss # what logged value we want to minimize
-    goal: minimize
-
-  parameters:
-    learning_rate:
-      distribution: categorical
-      values: [ 0.005 ] #, 192, 336, 720 ]
