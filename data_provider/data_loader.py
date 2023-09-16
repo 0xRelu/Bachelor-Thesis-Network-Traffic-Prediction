@@ -26,6 +26,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         self.pred_len = size[2]
 
         assert flag in ['train', 'test', 'val']
+        self.flag = flag
         self.set_type = {'train': 0, 'val': 1, 'test': 2}[flag]
 
         self.root_path = root_path
@@ -49,10 +50,9 @@ class Dataset_Traffic_Singe_Packets(Dataset):
     #     return data_transformer.data
 
     def __read_data__(self):
-        # TODO what if it does not exists
         save_path = os.path.join(self.root_path, self.data_path)
         with open(save_path, 'rb') as f:
-            data = torch.load(f)
+            data = pickle.load(f)
 
         # prepare data if seq_len, label_len or pred_len does not match
         if 'shape' not in data or len(data['shape']) != 3 or \
@@ -66,16 +66,11 @@ class Dataset_Traffic_Singe_Packets(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        if len(data['x']) != len(data['y']):
+        self.seq_x = data[self.flag]['x']
+        self.seq_y = data[self.flag]['y']
+
+        if len(self.seq_x) != len(self.seq_y):
             raise IndexError("Seq_x and Seq_y have to be of the same size")
-
-        data_x = data['x']
-        data_y = data['y']
-
-        shapes = [int(0.6 * len(data_x)), int(0.8 * len(data_x))]
-
-        self.seq_x = [data_x[:shapes[0]], data_x[shapes[0]:shapes[1]], data_x[shapes[1]:]][self.set_type]
-        self.seq_y = [data_y[:shapes[0]], data_y[shapes[0]:shapes[1]], data_y[shapes[1]:]][self.set_type]
 
     def __getitem__(self, index):
         # <<<< x >>>>
@@ -90,7 +85,8 @@ class Dataset_Traffic_Singe_Packets(Dataset):
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
-    def __get_mil_mico_(self, vector: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def __get_mil_mico_(vector: np.ndarray) -> np.ndarray:
         vector = (vector - np.floor(vector)) * 1000
         seq_x_milli = np.floor(vector)  # get next 4 number after comma - it's not possible to
         seq_x_micro = np.floor((vector - np.floor(vector)) * 1000)

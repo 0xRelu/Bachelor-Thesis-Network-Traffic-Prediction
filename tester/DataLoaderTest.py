@@ -16,11 +16,11 @@ if __name__ == "__main__":
     print("Start")
 
     cw_config = {
-        'data': 'Traffic_Even',
+        'data': 'Traffic_Single',
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data",
-        'data_path': "UNI1\\univ1_pt1_even_336_48_12.pkl",
+        'data_path': "UNI1\\univ1_pt1_single_336_48_12.pkl",
         'seq_len': 336,
         'label_len': 48,
         'pred_len': 12,

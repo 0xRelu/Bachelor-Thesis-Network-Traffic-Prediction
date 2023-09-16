@@ -45,7 +45,7 @@ params:
   # Forecasting task
   seq_len: 336 # input sequence length
   label_len: 48 # start token length
-  # pred_len: 96 # prediction sequence length
+  pred_len: 12 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -66,11 +66,7 @@ params:
 
   # data
   data: Traffic_Single
-
-list:
-  data_path: [ UNI1\\univ1_pt1_single_336_48_12.pkl, UNI1\\univ1_pt1_single_336_48_24.pkl,
-               UNI1\\univ1_pt1_single_336_48_48.pkl, UNI1\\univ1_pt1_single_336_48_96.pkl ]
-  pred_len: [ 12, 24, 48, 96 ]
+  data_path: UNI1/univ1_pt1_single_336_48_12.pkl
 
 ###############################################   RLINEAR   ###############################################
 ---
@@ -86,19 +82,7 @@ params:
   rev: 1
 
 wandb:
-    project: RLinear-Traffic-Single-v0
+    project: RLinear-Traffic-Single-v3
     group: alr
-    sweep_id: new
+    # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
-
-wandb_sweep:
-  name: Sweep-RLinear-Traffic-Single-v0
-  method: grid
-  metric:
-    name: loss # what logged value we want to minimize
-    goal: minimize
-
-  parameters:
-    learning_rate:
-      distribution: categorical
-      values: [ 0.005 ] #, 192, 336, 720 ]

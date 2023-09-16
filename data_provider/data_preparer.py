@@ -251,9 +251,6 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        scaler = TrafficScalerLocalSingleNp()
-
-        data_flows = scaler.fit_transform(data_flows)
         data_flows = self._list_milliseconds_(data_flows)  # [ [ time, [packets] ] ]
 
         seq_x = []
@@ -277,17 +274,25 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         seq_x = np.stack(seq_x)
         seq_y = np.stack(seq_y)
 
-        permutation_indexes = np.random.permutation(len(seq_x))  # len(seq_x) == len(seq_y)
-        seq_x = seq_x[permutation_indexes]  # randomizes sequences
-        seq_y = seq_y[permutation_indexes]  # randomizes sequences
+        sizes = [int(0.8 * len(seq_x)), int(0.9 * len(seq_x))]
+
+        train_x, test_x, val_x = np.split(seq_x, sizes)
+        train_y, test_y, val_y = np.split(seq_y, sizes)
+
+        # scale output sizes
+        scaler = StandardScalerNp()
+        train_y[:, : 1] = scaler.fit_transform(train_y[:, : 1])
+        test_y[:, : 1] = scaler.transform(test_y[:, : 1])
+        val_y[:, : 1] = scaler.transform(val_y[:, : 1])
 
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
-            'x': seq_x,
-            'y': seq_y
+            'train': {'x': train_x, 'y': train_y},
+            'test': {'x': test_x, 'y': test_y},
+            'val': {'x': val_x, 'y': val_y},
         }
 
-        print(f"[+] Found {len(flows['x'])} sequences")
+        print(f"[+] Found Train: {len(flows['train']['x'])} | Test: {len(flows['test']['x'])} | Val: {len(flows['val']['x'])} sequences")
         return flows
 
     @staticmethod
@@ -369,8 +374,8 @@ if __name__ == "__main__":
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'  # _new.pcap
     preds = [12, 18, 24, 30]
 
-    __save_even__(preds, path)
-    #__save_single__(preds, path)
+    #__save_even__(preds, path)
+    __save_single__(preds, path)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
     sys.exit(0)

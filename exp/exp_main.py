@@ -309,7 +309,8 @@ class Exp_Main(Exp_Basic):
 
         mae, mse, rmse, mape, mspe, rse, corr = metric(preds, trues)
         print('mse:{}, mae:{}, rse:{}'.format(mse, mae, rse))
-        return {'mse': mse, 'mae': mae, 'rse': rse, 'rmse': rmse, 'mape': mape, 'mspe': mspe, 'corr': corr}, trues_preds
+        return {'test_mse': mse, 'test_mae': mae, 'test_rse': rse, 'test_rmse': rmse,
+                'test_mape': mape, 'test_mspe': mspe, 'test_corr': corr}, trues_preds
 
     def predict(self, setting, load=False):
         pred_data, pred_loader = self._get_data(flag='pred')

@@ -28,7 +28,7 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         test_dict, trues_preds_test = self.expMain.test()  # test
         vali_loss, trues_preds_vali = self.expMain.vali()  # vali
 
-        test_dict.update({"vali_loss": vali_loss, "loss": loss, 'iter': n})
+        test_dict.update({"vali_loss": vali_loss, "train_loss": loss, 'iter': n})
 
         # log results as diagramms
         if n + 1 == cw_config['iterations']:
