@@ -5,12 +5,9 @@ import wandb
 from cw2 import cluster_work
 from cw2 import experiment, cw_error
 from cw2.cw_data import cw_logging
-from sweep_work.create_sweep import create_sweep
-from sweep_work.experiment_wrappers import wrap_experiment
-from sweep_work.sweep_logger import SweepLogger
 
 from exp.exp_main import Exp_Main
-from models.Config import Config
+from utils.tools import dotdict
 
 
 class LtsfExperiment(experiment.AbstractIterativeExperiment):
@@ -20,7 +17,7 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         params = cw_config['params']
         params['iterations'] = cw_config['iterations']
 
-        config = Config(params)
+        config = dotdict(params)
         self.expMain = Exp_Main(config)
 
     def iterate(self, cw_config: dict, rep: int, n: int) -> dict:

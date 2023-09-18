@@ -122,7 +122,7 @@ class DataTransformerBase:
         for value in data_flows:
             start_time = int(value[0][0] * 1000)
             end_time = int(value[-1][0] * 1000) + 1
-            flow = [[time, []] for time in range(start_time, end_time)]
+            flow = [[time / 1000, []] for time in range(start_time, end_time + 1)]
             for packet in value:
                 packet_time = int(packet[0] * 1000)
                 flow[packet_time - start_time][1].append(packet)
@@ -176,9 +176,9 @@ class DatatransformerEven(DataTransformerBase):
         sizes = [int(0.8 * len(seq)), int(0.9 * len(seq))]
 
         train, test, vali = np.split(seq, sizes)
-        train = scaler.fit_transform(train)
-        test = scaler.transform(test)
-        vali = scaler.transform(vali)
+        train[:, 1] = scaler.fit_transform(train[:, 1])
+        test[:, 1] = scaler.transform(test[:, 1])
+        vali[:, 1] = scaler.transform(vali[:, 1])
 
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
@@ -191,23 +191,23 @@ class DatatransformerEven(DataTransformerBase):
         return flows
 
     @staticmethod
-    def _list_milliseconds_only_sizes_(data_flows: list[ndarray]) -> list:
+    def _list_milliseconds_only_sizes_(data_flows: list[ndarray]) -> list[np.ndarray]:
         res_data = []
         for value in data_flows:
             start_time = int(value[0][0] * 1000)  # assumes packets are ordered
             end_time = int(value[-1][0] * 1000) + 1
-            flow = np.zeros((end_time - start_time + 1, 1))
+            flow = [[time / 1000, 0] for time in range(start_time, end_time + 1)]
 
             for packet in value:
                 packet_time = int(packet[0] * 1000)
-                flow[packet_time - start_time, 0] += packet[1]
+                flow[packet_time - start_time][1] += packet[1]
 
-            res_data.append(flow)
+            res_data.append(np.array(flow))
 
         return res_data
 
     @staticmethod
-    def __create_sequences__(data_flows: list, seq_len: int, label_len: int, pred_len: int, step_size: int,
+    def __create_sequences__(data_flows: list[np.ndarray], seq_len: int, label_len: int, pred_len: int, step_size: int,
                              flow_id: int):
         seq = []
         counter = 0
@@ -219,8 +219,8 @@ class DatatransformerEven(DataTransformerBase):
                 potential_seq = flow[i: i + seq_len + pred_len]
                 zero_element = 0  # scaler.zero_element()
 
-                if np.sum(potential_seq[:seq_len] == zero_element) > seq_len / 3 \
-                        and np.sum(potential_seq[-pred_len:] == zero_element) > pred_len / 3:
+                if np.sum(potential_seq[:seq_len, 1] == zero_element) > seq_len / 3 \
+                        and np.sum(potential_seq[-pred_len:, 1] == zero_element) > pred_len / 3:
                     continue
 
                 seq.append(potential_seq)
@@ -281,9 +281,9 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
         # scale output sizes
         scaler = StandardScalerNp()
-        train_y[:, : 1] = scaler.fit_transform(train_y[:, : 1])
-        test_y[:, : 1] = scaler.transform(test_y[:, : 1])
-        val_y[:, : 1] = scaler.transform(val_y[:, : 1])
+        train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
+        test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
+        val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
 
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
@@ -319,15 +319,12 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
                     continue
 
                 x1 = np.stack(x1[-seq_len:])
-                min_time = x1[:, 0].min()
-                x1[:, 0] = x1[:, 0] - min_time  # subtract min time value
 
                 if sum(1 for element in x1 if element[1] != 0) <= len(x1) / 3:
                     continue
 
                 # create [time, size] vector - filter for (A -> B) packets
-                y1 = list(map(lambda z: [(z[0] / 1000) - min_time, sum(map(lambda t: t[1], z[1]))],
-                              potential_pred))  # y = [len(y), 1]
+                y1 = list(map(lambda z: [z[0], sum(map(lambda t: t[1], z[1]))], potential_pred))  # y = [len(y), 1]
 
                 if sum(1 for element in y1[label_len:] if element[1] != 0) <= len(y1[label_len:]) / 3:
                     continue

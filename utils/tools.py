@@ -1,7 +1,10 @@
+import datetime
+
 import numpy as np
 import torch
 
-#plt.switch_backend('agg')
+
+# plt.switch_backend('agg')
 
 
 def adjust_learning_rate(optimizer, scheduler, epoch, args, printout=True):
@@ -14,20 +17,21 @@ def adjust_learning_rate(optimizer, scheduler, epoch, args, printout=True):
             10: 5e-7, 15: 1e-7, 20: 5e-8
         }
     elif args.lradj == 'type3':
-        lr_adjust = {epoch: args.learning_rate if epoch < 10 else args.learning_rate * (0.9 ** ((epoch - 3) // 1))}  # 10 > 3
+        lr_adjust = {
+            epoch: args.learning_rate if epoch < 10 else args.learning_rate * (0.9 ** ((epoch - 3) // 1))}  # 10 > 3
     elif args.lradj == 'constant':
         lr_adjust = {epoch: args.learning_rate}
     elif args.lradj == '3':
-        lr_adjust = {epoch: args.learning_rate if epoch < 10 else args.learning_rate*0.1}
+        lr_adjust = {epoch: args.learning_rate if epoch < 10 else args.learning_rate * 0.1}
     elif args.lradj == '4':
-        lr_adjust = {epoch: args.learning_rate if epoch < 15 else args.learning_rate*0.1}
+        lr_adjust = {epoch: args.learning_rate if epoch < 15 else args.learning_rate * 0.1}
     elif args.lradj == '5':
-        lr_adjust = {epoch: args.learning_rate if epoch < 25 else args.learning_rate*0.1}
+        lr_adjust = {epoch: args.learning_rate if epoch < 25 else args.learning_rate * 0.1}
     elif args.lradj == '6':
-        lr_adjust = {epoch: args.learning_rate if epoch < 5 else args.learning_rate*0.1}  
+        lr_adjust = {epoch: args.learning_rate if epoch < 5 else args.learning_rate * 0.1}
     elif args.lradj == 'TST':
         lr_adjust = {epoch: scheduler.get_last_lr()[0]}
-    
+
     if epoch in lr_adjust.keys():
         lr = lr_adjust[epoch]
         for param_group in optimizer.param_groups:
@@ -74,17 +78,21 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 
-class StandardScaler():
-    def __init__(self, mean, std):
-        self.mean = mean
-        self.std = std
+def parse_unix_time(vector: np.ndarray) -> np.ndarray:
+    datetime_components = np.empty((len(vector), 8), dtype=np.int32)
+    for i, dt in enumerate(vector):
+        dt_obj = datetime.datetime.fromtimestamp(dt)
 
-    def transform(self, data):
-        return (data - self.mean) / self.std
+        datetime_components[i, 0] = dt_obj.year
+        datetime_components[i, 1] = dt_obj.month
+        datetime_components[i, 2] = dt_obj.day
+        datetime_components[i, 3] = dt_obj.hour
+        datetime_components[i, 4] = dt_obj.minute
+        datetime_components[i, 5] = dt_obj.second
+        datetime_components[i, 6] = dt_obj.microsecond // 1000  # micro = 123456 // 1000 = 123
+        datetime_components[i, 7] = dt_obj.microsecond % 1000  # micro = 123456 % 1000 = 456
 
-    def inverse_transform(self, data):
-        return (data * self.std) + self.mean
-
+    return datetime_components
 
 # def visual(true, preds=None, name='./pic/test.pdf'):
 #     """

@@ -1,16 +1,7 @@
 import sys
 
-import numpy
-import numpy as np
-import torch
-import wandb
-from matplotlib import pyplot as plt
-from pandas import DataFrame
-from torch import tensor
-
 from data_provider.data_factory import data_provider
-from models.Config import Config
-from utils.padded_collate import padded_collate_fn
+from utils.tools import dotdict
 
 if __name__ == "__main__":
     print("Start")
@@ -30,7 +21,7 @@ if __name__ == "__main__":
         'embed': 'timeF',
     }
 
-    config = Config(cw_config)
+    config = dotdict(cw_config)
 
     train_data, train_loader = data_provider(config, flag='train')  #, collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))

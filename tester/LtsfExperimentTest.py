@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from exp.exp_main import Exp_Main
-from models.Config import Config
+from utils.tools import dotdict
 
 if __name__ == "__main__":
     etth_config = {
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     }
 
     print("<<<< start >>>>")
-    config = Config(etth_config)
+    config = dotdict(etth_config)
     expMain = Exp_Main(config)
 
     print("[+] Start training loop")

@@ -1,3 +1,4 @@
+import datetime
 import math
 import pickle
 import random
@@ -12,6 +13,8 @@ from sklearn.preprocessing import StandardScaler
 # from data_provider.data_preparer import DataTransformerSinglePacketsEven, DatatransformerEven
 from utils.timefeatures import time_features
 import warnings
+
+from utils.tools import parse_unix_time
 
 warnings.filterwarnings('ignore')
 
@@ -61,7 +64,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
             print(f"[-] Shape of saved data does not match "
                   f"new configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will try do prepare data...")
             raise FileExistsError("Expected File did not exist")
-            #data = self.__prepare_data__()
+            # data = self.__prepare_data__()
         else:
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
@@ -75,22 +78,13 @@ class Dataset_Traffic_Singe_Packets(Dataset):
     def __getitem__(self, index):
         # <<<< x >>>>
         seq_x = self.seq_x[index, :, 1:]  # dont add time feature
-        seq_x_mark = self.seq_x[index, :, 0]  # time feature
-        seq_x_mark = self.__get_mil_mico_(seq_x_mark)
+        seq_x_mark = parse_unix_time(self.seq_x[index, :, 0])
 
         # <<<< y >>>>
         seq_y = self.seq_y[index, :, 1:]
-        seq_y_mark = self.seq_y[index, :, 0]
-        seq_y_mark = self.__get_mil_mico_(seq_y_mark)
+        seq_y_mark = parse_unix_time(self.seq_y[index, :, 0])
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
-
-    @staticmethod
-    def __get_mil_mico_(vector: np.ndarray) -> np.ndarray:
-        vector = (vector - np.floor(vector)) * 1000
-        seq_x_milli = np.floor(vector)  # get next 4 number after comma - it's not possible to
-        seq_x_micro = np.floor((vector - np.floor(vector)) * 1000)
-        return np.stack((seq_x_milli, seq_x_micro), axis=1)
 
     def __len__(self):
         return len(self.seq_x)  # len(self.seq_x)
@@ -149,14 +143,12 @@ class Dataset_Traffic_Even(Dataset):
 
     def __getitem__(self, index):
         # <<<< x >>>>
-        seq_x = self.seq[index, :self.seq_len, :]
-        seq_x_mark = np.array([[time, 0] for time in range(0, self.seq_len)], dtype=np.float64)
+        seq_x = self.seq[index, :self.seq_len, 1:]
+        seq_x_mark = parse_unix_time(self.seq[index, :self.seq_len, 0])
 
         # <<<< y >>>>
-        seq_y = self.seq[index, -self.pred_len - self.label_len:, :]
-        seq_y_mark = np.array(
-            [[time, 0] for time in range(self.seq_len - self.label_len, self.seq_len + self.pred_len)],
-            dtype=np.float64)
+        seq_y = self.seq[index, -self.pred_len - self.label_len:, 1:]
+        seq_y_mark = parse_unix_time(self.seq[index, -self.pred_len - self.label_len:, 0])
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
@@ -250,7 +242,7 @@ class Dataset_ETT_hour(Dataset):
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return 10 # len(self.data_x) - self.seq_len - self.pred_len + 1
+        return 10  # len(self.data_x) - self.seq_len - self.pred_len + 1
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
