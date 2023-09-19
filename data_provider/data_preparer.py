@@ -8,12 +8,14 @@ import pickle
 import sys
 
 import numpy as np
+import scipy
 import torch
 from numpy import ndarray
 from scapy.layers.inet import TCP, UDP, IP
 from scapy.packet import Packet
 from scapy.plist import PacketList
 from scapy.utils import rdpcap
+from scipy.sparse import csr_matrix
 from torch import tensor, Tensor
 from torch.nn.utils.rnn import pad_sequence
 
@@ -55,7 +57,7 @@ def _split_flows_(packets: PacketList, max_flows: int) -> list:
         size = len(packet)
 
         # add new entry to flow
-        data_flows.get(flow_id).append([packet_time, size, 1 if flow_id_1 is flow_id else 2])
+        data_flows.get(flow_id).append([packet_time, size, 0 if flow_id_1 is flow_id else 1])
 
         if counter % 5000 == 0:
             print(f"[+] Packets loaded: {counter / len(packets)}")
@@ -114,23 +116,6 @@ class DataTransformerBase:
     def _get_data(self, data_flows: list[np.ndarray]):
         raise NotImplementedError
 
-    @staticmethod
-    def _list_milliseconds_(data_flows: list[np.ndarray]) -> list:
-        # Results add to list which contains all milliseconds
-
-        res_data = []
-        for value in data_flows:
-            start_time = int(value[0][0] * 1000)
-            end_time = int(value[-1][0] * 1000) + 1
-            flow = [[time / 1000, []] for time in range(start_time, end_time + 1)]
-            for packet in value:
-                packet_time = int(packet[0] * 1000)
-                flow[packet_time - start_time][1].append(packet)
-
-            res_data.append(flow)
-
-        return res_data
-
 
 class DatatransformerEven(DataTransformerBase):
     def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, step_size=1):
@@ -154,10 +139,6 @@ class DatatransformerEven(DataTransformerBase):
 
         data_flows = self._list_milliseconds_only_sizes_(data_flows)
 
-        # normalize
-        scaler = StandardScalerNp()
-
-        seq = []
         processes = 4
         data_flows = split_list(data_flows, processes)
 
@@ -169,25 +150,16 @@ class DatatransformerEven(DataTransformerBase):
         process_pool.close()
         process_pool.join()
 
-        for result in results:
-            seq += result
-
-        seq = np.stack(seq)
-        sizes = [int(0.8 * len(seq)), int(0.9 * len(seq))]
-
-        train, test, vali = np.split(seq, sizes)
-        train[:, 1] = scaler.fit_transform(train[:, 1])
-        test[:, 1] = scaler.transform(test[:, 1])
-        vali[:, 1] = scaler.transform(vali[:, 1])
+        flow_seq = []
+        for res in results:
+            flow_seq += res
 
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
-            'train': train,
-            'test': test,
-            'val': vali
+            'flow_seq': flow_seq,
         }
 
-        print(f"[+] Found train: {len(train)}, test: {len(test)} and vali:{len(vali)}  sequences")
+        print(f"[+] Found sequences: {sum([len(x) for x in flow_seq])} in {len(flow_seq)} flows sequences")
         return flows
 
     @staticmethod
@@ -213,19 +185,21 @@ class DatatransformerEven(DataTransformerBase):
         counter = 0
 
         for flow in data_flows:
-            print(f"[+] Started process with id {flow_id} | {counter} / {len(data_flows)}")
-
-            for i in range(0, len(flow) - seq_len - pred_len, step_size):
+            flow_seq = []
+            for i in range(0, len(flow) - seq_len - pred_len, step_size): # len(flow)
                 potential_seq = flow[i: i + seq_len + pred_len]
                 zero_element = 0  # scaler.zero_element()
 
-                if np.sum(potential_seq[:seq_len, 1] == zero_element) > seq_len / 3 \
-                        and np.sum(potential_seq[-pred_len:, 1] == zero_element) > pred_len / 3:
+                if np.sum(potential_seq[:seq_len, 1] != zero_element) < (seq_len / 4) \
+                        or np.sum(potential_seq[-pred_len:, 1] != zero_element) < (pred_len / 4):
                     continue
 
-                seq.append(potential_seq)
+                flow_seq.append(potential_seq)
 
+            if len(flow_seq) != 0:
+                seq.append(flow_seq)
             counter += 1
+            print(f"[+] {counter} / {len(data_flows)} | Found {len(flow_seq)} sequences | process id {flow_id}")
         return seq
 
 
@@ -253,9 +227,6 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
         data_flows = self._list_milliseconds_(data_flows)  # [ [ time, [packets] ] ]
 
-        seq_x = []
-        seq_y = []
-
         processes = 4
         data_flows = split_list(data_flows, processes)
 
@@ -267,32 +238,17 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         process_pool.close()
         process_pool.join()
 
+        flow_seq_x, flow_seq_y = [], []
         for x, y in results:
-            seq_x += x
-            seq_y += y
-
-        seq_x = np.stack(seq_x)
-        seq_y = np.stack(seq_y)
-
-        sizes = [int(0.8 * len(seq_x)), int(0.9 * len(seq_x))]
-
-        train_x, test_x, val_x = np.split(seq_x, sizes)
-        train_y, test_y, val_y = np.split(seq_y, sizes)
-
-        # scale output sizes
-        scaler = StandardScalerNp()
-        train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
-        test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
-        val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
+            flow_seq_x += x
+            flow_seq_y += y
 
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
-            'train': {'x': train_x, 'y': train_y},
-            'test': {'x': test_x, 'y': test_y},
-            'val': {'x': val_x, 'y': val_y},
+            'flow_seq': {'x': flow_seq_x, 'y': flow_seq_y},
         }
 
-        print(f"[+] Found Train: {len(flows['train']['x'])} | Test: {len(flows['test']['x'])} | Val: {len(flows['val']['x'])} sequences")
+        print(f"[+] Found {sum(len(x) for x in flow_seq_x)} in {len(flow_seq_x)} flows sequences")
         return flows
 
     @staticmethod
@@ -303,6 +259,9 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
         counter = 0
         for flow in data_flows:
+            flow_seq_x = []
+            flow_seq_y = []
+
             for i in range(max(label_len, max_mil_seq), len(flow),
                            step_size):  # at least label_len should be available - it might happen, that label_len is bigger then the sequence
                 if i + pred_len > len(flow):  # not enough for prediction
@@ -320,28 +279,45 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
                 x1 = np.stack(x1[-seq_len:])
 
-                if sum(1 for element in x1 if element[1] != 0) <= len(x1) / 3:
+                if sum(1 for element in x1 if element[1] != 0) < (seq_len / 4):
                     continue
 
                 # create [time, size] vector - filter for (A -> B) packets
                 y1 = list(map(lambda z: [z[0], sum(map(lambda t: t[1], z[1]))], potential_pred))  # y = [len(y), 1]
 
-                if sum(1 for element in y1[label_len:] if element[1] != 0) <= len(y1[label_len:]) / 3:
+                if sum(1 for element in y1[label_len:] if element[1] != 0) < (pred_len / 4):
                     continue
 
                 y1 = np.array(y1)
 
-                if y1[:,
-                   0].min() < 0:  # y1 can start (beacuse of label_length) before the input x1 -> then we have negative time values. Which we do not want!
-                    continue
+                flow_seq_x.append(x1)
+                flow_seq_y.append(y1)
 
-                seq_x.append(x1)
-                seq_y.append(y1)
+            if len(flow_seq_x) != 0:
+                seq_x.append(flow_seq_x)
+                seq_y.append(flow_seq_y)
 
             print(f"[+] Process: {flow_id} | {counter} / {len(data_flows)}")
             counter += 1
 
         return seq_x, seq_y
+
+    @staticmethod
+    def _list_milliseconds_(data_flows: list[np.ndarray]) -> list:
+        # Results add to list which contains all milliseconds
+
+        res_data = []
+        for value in data_flows:
+            start_time = int(value[0][0] * 1000)
+            end_time = int(value[-1][0] * 1000) + 1
+            flow = [[time / 1000, []] for time in range(start_time, end_time + 1)]
+            for packet in value:
+                packet_time = int(packet[0] * 1000)
+                flow[packet_time - start_time][1].append(packet)
+
+            res_data.append(flow)
+
+        return res_data
 
 def __save_even__(preds: list, path: str):
     for i in preds:
@@ -368,10 +344,10 @@ def __save_single__(preds: list, path: str):
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'  # _new.pcap
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
     preds = [12, 18, 24, 30]
 
-    #__save_even__(preds, path)
+    __save_even__(preds, path)
     __save_single__(preds, path)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

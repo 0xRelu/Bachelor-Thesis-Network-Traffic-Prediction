@@ -136,3 +136,24 @@ class StandardScalerNp:
     def fit_transform(self, values):
         self.fit(values)
         return self.transform(values)
+
+
+class MinMaxScalerNp:
+    def __init__(self, min=None, max=None, zero_element=None, epsilon=1e-7):
+        self.min = min
+        self.max = max
+        self.epsilon = epsilon
+        self.zero_element = zero_element
+
+    def fit(self, values: np.ndarray):
+        # dims = list(range(values.ndim() - 1))
+        self.min = np.min(values)
+        self.max = np.min(values)
+        self.zero_element = self.transform(0)
+
+    def transform(self, values):
+        return (values - self.min) / (self.max - self.min + self.epsilon )
+
+    def fit_transform(self, values):
+        self.fit(values)
+        return self.transform(values)

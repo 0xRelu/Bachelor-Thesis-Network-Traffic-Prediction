@@ -79,7 +79,7 @@ params:
   model: NLinear
 
 wandb:
-    project: NLinear-Traffic-Single-v3
+    project: NLinear-Traffic-Single-v4
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

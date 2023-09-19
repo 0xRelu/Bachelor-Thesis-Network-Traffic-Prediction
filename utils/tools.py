@@ -1,4 +1,5 @@
 import datetime
+import random
 
 import numpy as np
 import torch
@@ -93,6 +94,29 @@ def parse_unix_time(vector: np.ndarray) -> np.ndarray:
         datetime_components[i, 7] = dt_obj.microsecond % 1000  # micro = 123456 % 1000 = 456
 
     return datetime_components
+
+
+def split_list(list_to_split: list, percentages) -> list[list]:
+    if len(list_to_split) < len(percentages):
+        raise IndexError("1")
+
+    sizes = [max(1, round(percentage * len(list_to_split))) for percentage in percentages]
+
+    if sum(sizes) < len(list_to_split):
+        raise IndexError("2")
+
+    while sum(sizes) != len(list_to_split):
+        index = random.randint(0, len(sizes) - 1)
+        sizes[index] = max(1, sizes[index] - 1)
+
+    current_index = 0
+    splitted_list = []
+
+    for size in sizes:
+        splitted_list.append(list_to_split[current_index:current_index+size])
+        current_index += size
+
+    return splitted_list
 
 # def visual(true, preds=None, name='./pic/test.pdf'):
 #     """

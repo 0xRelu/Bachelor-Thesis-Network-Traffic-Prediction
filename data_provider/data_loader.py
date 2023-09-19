@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import math
 import pickle
 import random
@@ -10,11 +11,12 @@ import torch
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 
+from utils.scaler import StandardScalerNp
 # from data_provider.data_preparer import DataTransformerSinglePacketsEven, DatatransformerEven
 from utils.timefeatures import time_features
 import warnings
 
-from utils.tools import parse_unix_time
+from utils.tools import parse_unix_time, split_list
 
 warnings.filterwarnings('ignore')
 
@@ -69,11 +71,35 @@ class Dataset_Traffic_Singe_Packets(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        self.seq_x = data[self.flag]['x']
-        self.seq_y = data[self.flag]['y']
+        seq_x = data['flow_seq']['x']
+        seq_y = data['flow_seq']['y']
 
-        if len(self.seq_x) != len(self.seq_y):
+        if len(seq_x) != len(seq_y):
             raise IndexError("Seq_x and Seq_y have to be of the same size")
+
+        # randomize
+        # permutation_indexes = np.random.permutation(len(seq_x))
+        # seq_x = seq_x[permutation_indexes]
+        # seq_y = seq_y[permutation_indexes]
+
+        # split flows and normalize
+        [train_x, test_x, val_x] = split_list(seq_x, [0.8, 0.1, 0.1])
+        train_x, test_x, val_x = list(itertools.chain(*train_x)), list(itertools.chain(*test_x)), list(itertools.chain(*val_x))
+        train_x, test_x, val_x = np.stack(train_x), np.stack(test_x), np.stack(val_x)
+
+        [train_y, test_y, val_y] = split_list(seq_y, [0.8, 0.1, 0.1])
+        train_y, test_y, val_y = list(itertools.chain(*train_y)), list(itertools.chain(*test_y)), list(itertools.chain(*val_y))
+        train_y, test_y, val_y = np.stack(train_y), np.stack(test_y), np.stack(val_y)
+
+        # scale bytes (not time)
+        scaler = StandardScalerNp()
+        train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
+        test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
+        val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
+
+        self.seq_x = [train_x, val_x, test_x][self.set_type]
+        self.seq_y = [train_y, val_y, test_y][self.set_type]
+
 
     def __getitem__(self, index):
         # <<<< x >>>>
@@ -100,11 +126,10 @@ class Dataset_Traffic_Even(Dataset):
         self.pred_len = size[2]
 
         assert flag in ['train', 'test', 'val']
-        self.flag = flag
         self.set_type = {'train': 0, 'val': 1, 'test': 2}[flag]
 
         self.root_path = root_path
-        self.data_path = data_path[1:] if data_path.startswith('/') or data_path.startswith('\\') else data_path
+        self.data_path = data_path
 
         self.__read_data__()
 
@@ -139,7 +164,22 @@ class Dataset_Traffic_Even(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        self.seq = data[self.flag]
+        data = data['flow_seq']
+
+        # randomize
+        #random.shuffle(data)
+
+        # split flows and normalize
+        scaler = StandardScalerNp()
+        [train, test, val] = split_list(data, [0.8, 0.1, 0.1])
+        train, test, val = list(itertools.chain(*train)), list(itertools.chain(*test)), list(itertools.chain(*val))
+        train, test, val = np.stack(train), np.stack(test), np.stack(val)
+
+        train[:, :, 1] = scaler.fit_transform(train[:, :, 1])
+        test[:, :, 1] = scaler.transform(test[:, :, 1])
+        val[:, :, 1] = scaler.transform(val[:, :, 1])
+
+        self.seq = [train, val, test][self.set_type]
 
     def __getitem__(self, index):
         # <<<< x >>>>
