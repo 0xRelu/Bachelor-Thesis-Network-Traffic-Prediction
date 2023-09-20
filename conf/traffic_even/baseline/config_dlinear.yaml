@@ -45,7 +45,7 @@ params:
   # Forecasting task
   seq_len: 336 # input sequence length
   label_len: 48 # start token length
-  pred_len: 12 # prediction sequence length
+  pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -65,7 +65,7 @@ params:
   use_multi_gpu: 0 # check
 
   data: Traffic_Even
-  data_path: UNI1/univ1_pt1_even_336_48_12.pkl
+  data_path: UNI1/univ1_pt1_even_336_48_30.pkl
 
 ###############################################   DLINEAR   ###############################################
 ---

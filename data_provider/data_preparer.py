@@ -8,19 +8,11 @@ import pickle
 import sys
 
 import numpy as np
-import scipy
-import torch
 from numpy import ndarray
 from scapy.layers.inet import TCP, UDP, IP
-from scapy.packet import Packet
 from scapy.plist import PacketList
 from scapy.utils import rdpcap
-from scipy.sparse import csr_matrix
-from torch import tensor, Tensor
-from torch.nn.utils.rnn import pad_sequence
 
-from utils.scaler import StandardScaler, StandardScalerNp, TrafficScalerLocalEvenNp, TrafficScalerGlobalEvenNp, \
-    TrafficScalerLocalSingleNp
 
 
 def _split_flows_(packets: PacketList, max_flows: int) -> list:
@@ -118,7 +110,7 @@ class DataTransformerBase:
 
 
 class DatatransformerEven(DataTransformerBase):
-    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, step_size=1):
+    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, step_size=1, aggregation_time=1000):
         self.max_flows = max_flows
         self.seq_len = seq_len
 
@@ -163,15 +155,15 @@ class DatatransformerEven(DataTransformerBase):
         return flows
 
     @staticmethod
-    def _list_milliseconds_only_sizes_(data_flows: list[ndarray]) -> list[np.ndarray]:
+    def _list_milliseconds_only_sizes_(data_flows: list[ndarray], aggregation_time: int = 1000) -> list[np.ndarray]:
         res_data = []
         for value in data_flows:
-            start_time = int(value[0][0] * 1000)  # assumes packets are ordered
-            end_time = int(value[-1][0] * 1000) + 1
+            start_time = int(value[0][0] * aggregation_time)  # assumes packets are ordered
+            end_time = int(value[-1][0] * aggregation_time) + 1
             flow = [[time / 1000, 0] for time in range(start_time, end_time + 1)]
 
             for packet in value:
-                packet_time = int(packet[0] * 1000)
+                packet_time = int(packet[0] * aggregation_time)
                 flow[packet_time - start_time][1] += packet[1]
 
             res_data.append(np.array(flow))
@@ -205,7 +197,7 @@ class DatatransformerEven(DataTransformerBase):
 
 class DataTransformerSinglePacketsEven(DataTransformerBase):
     def __init__(self, pcap_file_path: str, max_flows: int, seq_len: int, max_mil_seq: int, label_len: int,
-                 pred_len: int, step_size=1):
+                 pred_len: int, step_size=1, aggregation_time=1000):
         self.max_flows = max_flows
         self.seq_len = seq_len
         self.max_mil_seq = max_mil_seq
@@ -303,26 +295,26 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         return seq_x, seq_y
 
     @staticmethod
-    def _list_milliseconds_(data_flows: list[np.ndarray]) -> list:
+    def _list_milliseconds_(data_flows: list[np.ndarray], aggregation_time: int = 1000) -> list:
         # Results add to list which contains all milliseconds
 
         res_data = []
         for value in data_flows:
-            start_time = int(value[0][0] * 1000)
-            end_time = int(value[-1][0] * 1000) + 1
+            start_time = int(value[0][0] * aggregation_time)
+            end_time = int(value[-1][0] * aggregation_time) + 1
             flow = [[time / 1000, []] for time in range(start_time, end_time + 1)]
             for packet in value:
-                packet_time = int(packet[0] * 1000)
+                packet_time = int(packet[0] * aggregation_time)
                 flow[packet_time - start_time][1].append(packet)
 
             res_data.append(flow)
 
         return res_data
 
-def __save_even__(preds: list, path: str):
+def __save_even__(preds: list, path: str, aggr_time: int):
     for i in preds:
         save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_even_336_48_{i}.pkl'
-        data_transformer = DatatransformerEven(path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, step_size=1)
+        data_transformer = DatatransformerEven(path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, step_size=1, aggregation_time=aggr_time)
 
         data_transformer.save_python_object(save_path)
         print(f"[x] Finished {i} and saved it in {save_path}")
@@ -330,11 +322,11 @@ def __save_even__(preds: list, path: str):
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
 
 
-def __save_single__(preds: list, path: str):
+def __save_single__(preds: list, path: str, aggr_time: int):
     for i in preds:
         save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_single_336_48_{i}.pkl'
         data_transformer = DataTransformerSinglePacketsEven(path, max_flows=-1, seq_len=336, label_len=48, pred_len=i,
-                                                            max_mil_seq=500, step_size=1)
+                                                            max_mil_seq=500, step_size=1, aggregation_time=aggr_time)
 
         data_transformer.save_python_object(save_path)
         print(f"[x] Finished {i} and saved it in {save_path}")
@@ -346,9 +338,10 @@ if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
     preds = [12, 18, 24, 30]
+    aggregation_time = 1000  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
-    __save_even__(preds, path)
-    __save_single__(preds, path)
+    __save_even__(preds, path, aggregation_time)
+    __save_single__(preds, path, aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
     sys.exit(0)

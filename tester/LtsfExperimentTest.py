@@ -9,18 +9,18 @@ from utils.tools import dotdict
 
 if __name__ == "__main__":
     etth_config = {
-        'iterations': 200,
+        'iterations': 50,
         'learning_rate': 0.001,
         'lradj': 'type3',
 
-        'data': 'ETTh1',
+        'data': 'Test',
         'batch_size': 10,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data",
         'data_path': "ETT\\ETTh1.csv",  # "ETT\\ETTh1.csv",  #
-        'seq_len': 96,
-        'label_len': 40,
-        'pred_len': 56,
+        'seq_len': 332,
+        'label_len': 48,
+        'pred_len': 12,
         'features': "M",
         'target': "M",
         'num_workers': 1,
@@ -34,8 +34,8 @@ if __name__ == "__main__":
         'use_multi_gpu': False,
 
         # transformer
-        'model_id': "Transformer",
-        'model': "Transformer",
+        'model_id': "Test",
+        'model': "Test",
         'embed_type': 4,
         'enc_in': 7,
         'dec_in': 7,
