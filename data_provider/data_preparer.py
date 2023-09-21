@@ -14,7 +14,6 @@ from scapy.plist import PacketList
 from scapy.utils import rdpcap
 
 
-
 def _split_flows_(packets: PacketList, max_flows: int) -> list:
     data_flows = {}
 
@@ -110,9 +109,12 @@ class DataTransformerBase:
 
 
 class DatatransformerEven(DataTransformerBase):
-    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, step_size=1, aggregation_time=1000):
+    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, step_size=1,
+                 aggregation_time=1000, processes=4):
         self.max_flows = max_flows
         self.seq_len = seq_len
+        self.aggregation_time = aggregation_time
+        self.processes = processes
 
         if label_len > seq_len:
             raise AttributeError("Label length has to be smaller then the sequence length")
@@ -129,15 +131,14 @@ class DatatransformerEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        data_flows = self._list_milliseconds_only_sizes_(data_flows)
+        data_flows = self._list_milliseconds_only_sizes_(data_flows, self.aggregation_time)
 
-        processes = 4
-        data_flows = split_list(data_flows, processes)
+        data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
                    self.pred_len, self.step_size, flow) for flow in range(len(data_flows))]
 
-        process_pool = multiprocessing.Pool(processes=processes)
+        process_pool = multiprocessing.Pool(processes=self.processes)
         results = process_pool.starmap(self.__create_sequences__, params)
         process_pool.close()
         process_pool.join()
@@ -178,7 +179,7 @@ class DatatransformerEven(DataTransformerBase):
 
         for flow in data_flows:
             flow_seq = []
-            for i in range(0, len(flow) - seq_len - pred_len, step_size): # len(flow)
+            for i in range(0, len(flow) - seq_len - pred_len, step_size):  # len(flow)
                 potential_seq = flow[i: i + seq_len + pred_len]
                 zero_element = 0  # scaler.zero_element()
 
@@ -197,10 +198,12 @@ class DatatransformerEven(DataTransformerBase):
 
 class DataTransformerSinglePacketsEven(DataTransformerBase):
     def __init__(self, pcap_file_path: str, max_flows: int, seq_len: int, max_mil_seq: int, label_len: int,
-                 pred_len: int, step_size=1, aggregation_time=1000):
+                 pred_len: int, step_size=1, aggregation_time=1000, processes=4):
         self.max_flows = max_flows
         self.seq_len = seq_len
         self.max_mil_seq = max_mil_seq
+        self.processes = processes
+        self.aggregation_time = aggregation_time
 
         if label_len > seq_len:
             raise AttributeError("Label length has to be smaller then the sequence length")
@@ -217,15 +220,14 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        data_flows = self._list_milliseconds_(data_flows)  # [ [ time, [packets] ] ]
+        data_flows = self._list_milliseconds_(data_flows, self.aggregation_time)  # [ [ time, [packets] ] ]
 
-        processes = 4
-        data_flows = split_list(data_flows, processes)
+        data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
                    self.pred_len, self.step_size, self.max_mil_seq, flow) for flow in range(len(data_flows))]
 
-        process_pool = multiprocessing.Pool(processes=processes)
+        process_pool = multiprocessing.Pool(processes=self.processes)
         results = process_pool.starmap(self.__create_sequences__, params)
         process_pool.close()
         process_pool.join()
@@ -311,25 +313,30 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
         return res_data
 
-def __save_even__(preds: list, path: str, aggr_time: int):
-    for i in preds:
-        save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_even_336_48_{i}.pkl'
-        data_transformer = DatatransformerEven(path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, step_size=1, aggregation_time=aggr_time)
 
-        data_transformer.save_python_object(save_path)
-        print(f"[x] Finished {i} and saved it in {save_path}")
+def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
+    for j in aggr_time:
+        for i in pred_lens:
+            save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_even_336_48_{i}_{j}.pkl'
+            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i,
+                                                   step_size=1, aggregation_time=j, processes=8)
+
+            data_transformer.save_python_object(save_path)
+            print(f"[x] Finished {i} and saved it in {save_path}")
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
 
 
-def __save_single__(preds: list, path: str, aggr_time: int):
-    for i in preds:
-        save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_single_336_48_{i}.pkl'
-        data_transformer = DataTransformerSinglePacketsEven(path, max_flows=-1, seq_len=336, label_len=48, pred_len=i,
-                                                            max_mil_seq=500, step_size=1, aggregation_time=aggr_time)
+def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
+    for j in aggr_time:
+        for i in pred_lens:
+            save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_single_336_48_{i}_{j}.pkl'
+            data_transformer = DataTransformerSinglePacketsEven(load_path, max_flows=-1, seq_len=336, label_len=48,
+                                                                pred_len=i, max_mil_seq=500, step_size=1,
+                                                                aggregation_time=j, processes=8)
 
-        data_transformer.save_python_object(save_path)
-        print(f"[x] Finished {i} and saved it in {save_path}")
+            data_transformer.save_python_object(save_path)
+            print(f"[x] Finished {i} and saved it in {save_path}")
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
 
@@ -338,7 +345,7 @@ if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
     preds = [12, 18, 24, 30]
-    aggregation_time = 1000  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
+    aggregation_time = [100, 10, 1]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     __save_even__(preds, path, aggregation_time)
     __save_single__(preds, path, aggregation_time)

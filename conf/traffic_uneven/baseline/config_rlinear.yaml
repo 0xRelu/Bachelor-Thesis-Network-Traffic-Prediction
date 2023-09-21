@@ -10,7 +10,7 @@ job-name: RLinear-Job-Traffic-Single    # this will be the experiment's name in 
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 100  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 200  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
 mem-per-cpu: 4000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
