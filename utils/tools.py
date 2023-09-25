@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import random
 
 import numpy as np
@@ -84,21 +85,21 @@ def parse_unix_time(vector: np.ndarray) -> np.ndarray:
     for i, dt in enumerate(vector):
         dt_obj = datetime.datetime.fromtimestamp(dt)
 
-        # datetime_components[i, 0] = dt_obj.year
-        datetime_components[i, 0] = dt_obj.month
-        datetime_components[i, 1] = dt_obj.day
-        datetime_components[i, 2] = dt_obj.hour
-        datetime_components[i, 3] = dt_obj.minute
-        datetime_components[i, 4] = dt_obj.second
-        datetime_components[i, 5] = dt_obj.microsecond // 1000  # micro = 123456 // 1000 = 123
-        datetime_components[i, 6] = dt_obj.microsecond % 1000  # micro = 123456 % 1000 = 456
+        datetime_components[i, 0] = dt_obj.year
+        datetime_components[i, 1] = dt_obj.month
+        datetime_components[i, 2] = dt_obj.day
+        datetime_components[i, 3] = dt_obj.hour
+        datetime_components[i, 4] = dt_obj.minute
+        datetime_components[i, 5] = dt_obj.second
+        datetime_components[i, 6] = dt_obj.microsecond // 1000  # micro = 123456 // 1000 = 123
+        datetime_components[i, 7] = dt_obj.microsecond % 1000  # micro = 123456 % 1000 = 456
 
     return datetime_components
 
 
 def split_list(list_to_split: list, percentages) -> list[list]:
     if len(list_to_split) < len(percentages):
-        raise IndexError("1")
+        raise IndexError("There are more percantages then lists to split")
 
     sizes = [max(1, round(percentage * len(list_to_split))) for percentage in percentages]
 
@@ -110,13 +111,28 @@ def split_list(list_to_split: list, percentages) -> list[list]:
         sizes[index] = max(1, sizes[index] - 1)
 
     current_index = 0
-    splitted_list = []
+    split_list = []
 
     for size in sizes:
-        splitted_list.append(list_to_split[current_index:current_index+size])
+        split_list.append(list_to_split[current_index:current_index+size])
         current_index += size
 
-    return splitted_list
+    return split_list
+
+def split_list_percentage(list_to_split: list, percentages: list) -> list:
+    list_to_split = list(itertools.chain(*list_to_split))
+    percentages = [0] + [int(percentage * len(list_to_split)) for percentage in percentages] + [len(list_to_split)] # percentages have to be ..<..<..< e.g. [0.6, 0.8, 0.9]
+
+    split_list = []
+
+    for i, p in enumerate(percentages):
+        if i + 1 == len(percentages):
+            break
+
+        split_list.append(list_to_split[p: percentages[i+1]])
+
+    return split_list
+
 
 # def visual(true, preds=None, name='./pic/test.pdf'):
 #     """

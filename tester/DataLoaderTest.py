@@ -10,11 +10,11 @@ if __name__ == "__main__":
         'data': 'Traffic_Single',
         'batch_size': 128,
         'freq': "h",
-        'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data",
-        'data_path': "UNI1\\univ1_pt1_single_336_48_12.pkl",
+        'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1",
+        'data_path': "univ1_pt1_single_336_48_18_1000.pkl",
         'seq_len': 336,
         'label_len': 48,
-        'pred_len': 12,
+        'pred_len': 18,
         'features': "M",
         'target': "M",
         'num_workers': 1,
@@ -23,23 +23,32 @@ if __name__ == "__main__":
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='train')  #, collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='val')  #, collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        if i % 10 == 0:
-            print(f"Train {i / len(train_loader)} | Shape_x: {batch_x.shape} - {batch_y.shape} ")
+        try:
+            batch_x.float()
+            batch_y.float()
+            batch_x_mark.float()
+            batch_y_mark.float()
+        except Exception:
+            print(batch_x)
+        if i % 100 == 0:
+            print(f"\tTrain {i / len(train_loader)} ")
+
+    sys.exit(0)
 
     train_data, train_loader = data_provider(config, flag='test')
     print("Length: ", len(train_data))
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
         if i % 100 == 0:
-            print(f"Test {i / len(train_loader)}")
+            print(f"\tTest {i / len(train_loader)}")
 
     train_data, train_loader = data_provider(config, flag='val')
     print("Length: ", len(train_data))
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
         if i % 100 == 0:
-            print(f"Val {i / len(train_loader)}")
+            print(f"\tVal {i / len(train_loader)}")
 
     sys.exit(0)

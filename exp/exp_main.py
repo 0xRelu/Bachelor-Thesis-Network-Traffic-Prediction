@@ -25,6 +25,8 @@ class Exp_Main(Exp_Basic):
         super(Exp_Main, self).__init__(args)
 
         self.train_data, self.train_loader = None, None
+        self.test_data, self.test_loader = None, None
+        self.val_data, self.val_loader = None, None
 
     def _build_model(self):
         model_dict = {
@@ -62,15 +64,16 @@ class Exp_Main(Exp_Basic):
         return criterion
 
     def vali(self):
-        vali_data, vali_loader = self._get_data(flag='val')
+        if self.val_loader is None or self.val_data is None:
+            self.val_data, self.val_loader = self._get_data(flag='val')
 
         trues_preds = []
         total_loss = []
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(self.val_loader):
                 batch_x = batch_x.float().to(self.device)
-                batch_y = batch_y.float()
+                batch_y = batch_y.float().to(self.device)
 
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
@@ -228,7 +231,8 @@ class Exp_Main(Exp_Basic):
         return train_loss_avg, trues_preds
 
     def test(self):
-        test_data, test_loader = self._get_data(flag='test')
+        if self.test_data is None or self.test_loader is None:
+            self.test_data, self.test_loader = self._get_data(flag='test')
 
         preds = []
         trues = []
@@ -238,7 +242,7 @@ class Exp_Main(Exp_Basic):
 
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(self.test_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 

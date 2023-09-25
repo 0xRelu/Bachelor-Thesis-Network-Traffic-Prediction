@@ -9,7 +9,8 @@ import sys
 
 import numpy as np
 from numpy import ndarray
-from scapy.layers.inet import TCP, UDP, IP
+from scapy.layers.inet import TCP, UDP, IP, ICMP
+from scapy.packet import Packet
 from scapy.plist import PacketList
 from scapy.utils import rdpcap
 
@@ -22,7 +23,7 @@ def _split_flows_(packets: PacketList, max_flows: int) -> list:
     for packet in packets:
         counter += 1
 
-        if IP not in packet or TCP not in packet[IP]:  # only tcp for now
+        if IP not in packet or (UDP not in packet[IP] and TCP not in packet[IP]):
             continue
 
         flow_id_1 = packet[IP].src + "|" + packet[IP].dst
@@ -48,12 +49,26 @@ def _split_flows_(packets: PacketList, max_flows: int) -> list:
         size = len(packet)
 
         # add new entry to flow
-        data_flows.get(flow_id).append([packet_time, size, 0 if flow_id_1 is flow_id else 1])
+        data_flows.get(flow_id).append(
+            [packet_time, size, 0 if flow_id_1 is flow_id else 1, hot_embed_protocol(packet)])
 
         if counter % 5000 == 0:
             print(f"[+] Packets loaded: {counter / len(packets)}")
 
     return [np.array(flow) for flow in data_flows.values()]
+
+
+def hot_embed_protocol(packet: Packet) -> int:
+    if IP not in packet:
+        raise IndexError("IP has to be in packet.")
+
+    if TCP in packet[IP]:
+        return 0
+
+    if UDP in packet[IP]:
+        return 1
+
+    raise IndexError(f"Protocol not defined {packet.summary()}")
 
 
 def split_list(input_list, num_parts):
@@ -77,6 +92,30 @@ def parse_pcap_to_list(file_path: str, save_path: str):
         pickle.dump(packetList, f)
 
     print(f"[+] Wrote {len(packetList)} flows successfully in file with path {save_path}")
+
+
+def _list_milliseconds_(data_flow: np.ndarray, aggregation_time: int = 1000) -> list:
+    start_time = int(data_flow[0][0] * aggregation_time)
+    end_time = int(data_flow[-1][0] * aggregation_time) + 1
+    flow = [[time / aggregation_time, []] for time in range(start_time, end_time + 1)]
+
+    for packet in data_flow:
+        packet_time = int(packet[0] * aggregation_time)
+        flow[packet_time - start_time][1].append(packet)
+
+    return flow
+
+
+def _list_milliseconds_only_sizes_(data_flow: ndarray, aggregation_time: int = 1000) -> np.ndarray:
+    start_time = int(data_flow[0][0] * aggregation_time)  # assumes packets are ordered
+    end_time = int(data_flow[-1][0] * aggregation_time) + 1
+    flow = [[time / aggregation_time, 0] for time in range(start_time, end_time + 1)]
+
+    for packet in data_flow:
+        packet_time = int(packet[0] * aggregation_time)
+        flow[packet_time - start_time][1] += packet[1]
+
+    return np.array(flow)
 
 
 class DataTransformerBase:
@@ -131,12 +170,11 @@ class DatatransformerEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        data_flows = self._list_milliseconds_only_sizes_(data_flows, self.aggregation_time)
-
+        # data_flows = self._list_milliseconds_only_sizes_(data_flows, self.aggregation_time)
         data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, flow) for flow in range(len(data_flows))]
+                   self.pred_len, self.step_size, self.aggregation_time, flow) for flow in range(len(data_flows))]
 
         process_pool = multiprocessing.Pool(processes=self.processes)
         results = process_pool.starmap(self.__create_sequences__, params)
@@ -156,28 +194,14 @@ class DatatransformerEven(DataTransformerBase):
         return flows
 
     @staticmethod
-    def _list_milliseconds_only_sizes_(data_flows: list[ndarray], aggregation_time: int = 1000) -> list[np.ndarray]:
-        res_data = []
-        for value in data_flows:
-            start_time = int(value[0][0] * aggregation_time)  # assumes packets are ordered
-            end_time = int(value[-1][0] * aggregation_time) + 1
-            flow = [[time / 1000, 0] for time in range(start_time, end_time + 1)]
-
-            for packet in value:
-                packet_time = int(packet[0] * aggregation_time)
-                flow[packet_time - start_time][1] += packet[1]
-
-            res_data.append(np.array(flow))
-
-        return res_data
-
-    @staticmethod
     def __create_sequences__(data_flows: list[np.ndarray], seq_len: int, label_len: int, pred_len: int, step_size: int,
-                             flow_id: int):
+                             aggregation_time: int, flow_id: int):
         seq = []
         counter = 0
 
         for flow in data_flows:
+            flow = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=aggregation_time)
+
             flow_seq = []
             for i in range(0, len(flow) - seq_len - pred_len, step_size):  # len(flow)
                 potential_seq = flow[i: i + seq_len + pred_len]
@@ -220,12 +244,12 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        data_flows = self._list_milliseconds_(data_flows, self.aggregation_time)  # [ [ time, [packets] ] ]
-
+        # data_flows = self._list_milliseconds_(data_flows, self.aggregation_time)  # [ [ time, [packets] ] ]
         data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, self.max_mil_seq, flow) for flow in range(len(data_flows))]
+                   self.pred_len, self.step_size, self.max_mil_seq, self.aggregation_time, flow) for flow in
+                  range(len(data_flows))]
 
         process_pool = multiprocessing.Pool(processes=self.processes)
         results = process_pool.starmap(self.__create_sequences__, params)
@@ -247,12 +271,14 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
     @staticmethod
     def __create_sequences__(data_flows: list, seq_len: int, label_len: int, pred_len: int, step_size: int,
-                             max_mil_seq: int, flow_id: int):
+                             max_mil_seq: int, aggregation_time: int, flow_id: int):
         seq_x = []
         seq_y = []
 
         counter = 0
         for flow in data_flows:
+            flow = _list_milliseconds_(data_flow=flow, aggregation_time=aggregation_time)
+
             flow_seq_x = []
             flow_seq_y = []
 
@@ -266,7 +292,7 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
 
                 # <<< x1|y1: (A <-> B) -> (A <-> B) >>>
                 x1 = list(map(lambda z: z[1], potential_seq))
-                x1 = list(itertools.chain(*x1))  # x = [len(x), 3] (time,size,direction)
+                x1 = list(itertools.chain(*x1))  # x = [len(x), 3] (time,size,direction,protocol)
 
                 if len(x1) < seq_len:
                     continue
@@ -291,27 +317,21 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
                 seq_x.append(flow_seq_x)
                 seq_y.append(flow_seq_y)
 
-            print(f"[+] Process: {flow_id} | {counter} / {len(data_flows)}")
             counter += 1
+            print(f"[+] Process: {flow_id} | {counter} / {len(data_flows)}")
 
         return seq_x, seq_y
 
-    @staticmethod
-    def _list_milliseconds_(data_flows: list[np.ndarray], aggregation_time: int = 1000) -> list:
-        # Results add to list which contains all milliseconds
 
-        res_data = []
-        for value in data_flows:
-            start_time = int(value[0][0] * aggregation_time)
-            end_time = int(value[-1][0] * aggregation_time) + 1
-            flow = [[time / 1000, []] for time in range(start_time, end_time + 1)]
-            for packet in value:
-                packet_time = int(packet[0] * aggregation_time)
-                flow[packet_time - start_time][1].append(packet)
+def __create_split_flow_files__():
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1'  # _test
+    path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test'  #
 
-            res_data.append(flow)
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'
+    save_path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'
 
-        return res_data
+    parse_pcap_to_list(path, save_path)
+    parse_pcap_to_list(path_test, save_path_test)
 
 
 def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
@@ -324,7 +344,7 @@ def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
             data_transformer.save_python_object(save_path)
             print(f"[x] Finished {i} and saved it in {save_path}")
 
-    print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
+    print("<<<<<<<<<<<<<<<< Done Even >>>>>>>>>>>>>>>>")
 
 
 def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
@@ -338,14 +358,16 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
             data_transformer.save_python_object(save_path)
             print(f"[x] Finished {i} and saved it in {save_path}")
 
-    print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
+    print("<<<<<<<<<<<<<<<< Done Single >>>>>>>>>>>>>>>>")
 
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
     preds = [12, 18, 24, 30]
-    aggregation_time = [100, 10, 1]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
+    aggregation_time = [1000, 100, 10, 1]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
+
+    # __create_split_flow_files__() # only if packets got changed
 
     __save_even__(preds, path, aggregation_time)
     __save_single__(preds, path, aggregation_time)

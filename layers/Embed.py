@@ -112,18 +112,18 @@ class TimeFeatureEmbeddingMicroseconds(nn.Module):
         self.day_embed = Embed(day_size, d_model)
         self.month_embed = Embed(month_size, d_model)
 
-    def forward(self, x):
+    def forward(self, x):  # x = [year, month, day, hour, minute, second, millisecond, microsecond]
         x = x.long()
 
-        microsecond_x = self.microseconds_embed(x[:, :, 6])
-        millisecond_x = self.milliseconds_embed(x[:, :, 5])
-        second_x = self.second_embed(x[:, :, 4])
-        minute_x = self.minute_embed(x[:, :, 3])
-        hour_x = self.hour_embed(x[:, :, 2])
-        day_x = self.day_embed(x[:, :, 1])
-        month_x = self.month_embed(x[:, :, 0])
+        microsecond_x = self.microseconds_embed(x[:, :, 7])
+        millisecond_x = self.milliseconds_embed(x[:, :, 6])
+        second_x = self.second_embed(x[:, :, 5])
+        minute_x = self.minute_embed(x[:, :, 4])
+        hour_x = self.hour_embed(x[:, :, 3])
+        day_x = self.day_embed(x[:, :, 2])
+        month_x = self.month_embed(x[:, :, 1])
 
-        return hour_x + day_x + month_x + minute_x + second_x + millisecond_x + microsecond_x
+        return hour_x + minute_x + second_x + millisecond_x + microsecond_x  # month_x + day_x
 
 
 class TimeFeatureEmbedding(nn.Module):
@@ -153,6 +153,21 @@ class DirectionEmbedding(nn.Module):
         return self.direction_embedding(x)
 
 
+class ProtocolEmbedding(nn.Module):
+    def __init__(self, d_model, embed_type='fixed', freq='h'):
+        super(ProtocolEmbedding, self).__init__()
+
+        protocol_amount = 2  # TCP = 0, UDP = 1
+
+        Embed = FixedEmbedding if embed_type == 'fixed' else nn.Embedding
+
+        self.protocol_embedding = Embed(protocol_amount, d_model)  # (A <-> B) -> (A -> B) | (A <-> B) -> (A <- B)
+
+    def forward(self, x):
+        x = x.long()
+        return self.protocol_embedding(x)
+
+
 class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
@@ -176,12 +191,14 @@ class DataEmbedding_w_dir_temp(nn.Module):
         self.value_embedding = nn.Linear(c_in - 1, d_model,
                                          bias=True)  # -1 because we use a separate embedding for direction
         self.direction_embedding = DirectionEmbedding(d_model=d_model)  # assume that direction is the last feature
+        self.protocol_embedding = ProtocolEmbedding(d_model=d_model)
         self.temporal_embedding = TimeFeatureEmbeddingMicroseconds(d_model=d_model, embed_type=embed_type,
                                                                    freq=freq)
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, x, x_mark):  # x = [B,L,2] ~ (size,direction), x_mark= [B,L,2] ~ (milliseconds, microseconds)
-        x = self.value_embedding(x[:, :, :-1]) + self.direction_embedding(x[:, :, -1]) + self.temporal_embedding(x_mark)
+    def forward(self, x, x_mark):  # x = [B,L,2] ~ (size,direction,protocol), x_mark= [B,L,2] ~ (milliseconds, microseconds)
+        x = self.value_embedding(x[:, :, :-2]) + self.direction_embedding(x[:, :, -2]) \
+            + self.protocol_embedding(x[:, :, -1]) + self.temporal_embedding(x_mark)
         return self.dropout(x)
 
 

@@ -16,7 +16,7 @@ from utils.scaler import StandardScalerNp
 from utils.timefeatures import time_features
 import warnings
 
-from utils.tools import parse_unix_time, split_list
+from utils.tools import parse_unix_time, split_list, split_list_percentage
 
 warnings.filterwarnings('ignore')
 
@@ -83,13 +83,13 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         # seq_y = seq_y[permutation_indexes]
 
         # split flows and normalize
-        [train_x, test_x, val_x] = split_list(seq_x, [0.8, 0.1, 0.1])
-        train_x, test_x, val_x = list(itertools.chain(*train_x)), list(itertools.chain(*test_x)), list(itertools.chain(*val_x))
-        train_x, test_x, val_x = np.stack(train_x), np.stack(test_x), np.stack(val_x)
+        sizes = [0.7, 0.85]
 
-        [train_y, test_y, val_y] = split_list(seq_y, [0.8, 0.1, 0.1])
-        train_y, test_y, val_y = list(itertools.chain(*train_y)), list(itertools.chain(*test_y)), list(itertools.chain(*val_y))
-        train_y, test_y, val_y = np.stack(train_y), np.stack(test_y), np.stack(val_y)
+        [train_x, val_x, test_x] = split_list_percentage(seq_x, sizes)
+        train_x, val_x, test_x = np.stack(train_x), np.stack(val_x), np.stack(test_x)
+
+        [train_y, val_y, test_y] = split_list_percentage(seq_y,  sizes)
+        train_y, val_y, test_y = np.stack(train_y), np.stack(val_y), np.stack(test_y)
 
         # scale bytes (not time)
         scaler = StandardScalerNp()
@@ -166,14 +166,10 @@ class Dataset_Traffic_Even(Dataset):
 
         data = data['flow_seq']
 
-        # randomize
-        #random.shuffle(data)
-
         # split flows and normalize
         scaler = StandardScalerNp()
-        [train, test, val] = split_list(data, [0.8, 0.1, 0.1])
-        train, test, val = list(itertools.chain(*train)), list(itertools.chain(*test)), list(itertools.chain(*val))
-        train, test, val = np.stack(train), np.stack(test), np.stack(val)
+        [train, val, test] = split_list_percentage(data, [0.7, 0.85])
+        train, val, test = np.stack(train), np.stack(val), np.stack(test)
 
         train[:, :, 1] = scaler.fit_transform(train[:, :, 1])
         test[:, :, 1] = scaler.transform(test[:, :, 1])
