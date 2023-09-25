@@ -67,7 +67,7 @@ params:
   data: Traffic_Even
 
 list:
-  data_path: [univ1_pt1_even_336_48_12_10.pkl, univ1_pt1_even_336_48_18_10.pkl, univ1_pt1_even_336_48_24_10.pkl, univ1_pt1_even_336_48_30_10.pkl]
+  data_path: [univ1_pt1_even_336_48_12_1000.pkl, univ1_pt1_even_336_48_18_1000.pkl, univ1_pt1_even_336_48_24_1000.pkl, univ1_pt1_even_336_48_30_1000.pkl]
   pred_len: [12, 18, 24, 30]
 
 
@@ -101,7 +101,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Vanilla-Transformer-Traffic-Even-v4
+    project: Vanilla-Transformer-Traffic-Even-v5
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

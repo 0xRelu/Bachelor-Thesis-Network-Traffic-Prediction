@@ -68,7 +68,7 @@ params:
   data: Traffic_Even
 
 list:
-  data_path: [univ1_pt1_even_336_48_12_100.pkl, univ1_pt1_even_336_48_18_10.pkl, univ1_pt1_even_336_48_24_10.pkl, univ1_pt1_even_336_48_30_10.pkl]
+  data_path: [univ1_pt1_even_336_48_12_1000.pkl, univ1_pt1_even_336_48_18_1000.pkl, univ1_pt1_even_336_48_24_1000.pkl, univ1_pt1_even_336_48_30_1000.pkl]
   pred_len: [12, 18, 24, 30]
 
 
@@ -82,7 +82,7 @@ params:
   model: NLinear
 
 wandb:
-    project: NLinear-Traffic-Even-v4
+    project: NLinear-Traffic-Even-v5
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

@@ -101,7 +101,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Informer-Transformer-Traffic-Single-v4
+    project: Informer-Transformer-Traffic-Single-v5
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

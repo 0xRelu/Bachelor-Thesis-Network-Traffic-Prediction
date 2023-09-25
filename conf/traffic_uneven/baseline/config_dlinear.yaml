@@ -20,7 +20,7 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #   #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results #  #   #
 repetitions: 1    # number of times one set of parameters is run
 iterations: 100  # number of iterations per repetition
 
@@ -35,7 +35,7 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1 # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1  #  #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1 # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1 #   #  #
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: OT # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
@@ -83,7 +83,7 @@ params:
   individual: False
 
 wandb:
-    project: DLinear-Traffic-Single-v4
+    project: DLinear-Traffic-Single-v5
     group: alr
     #sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
