@@ -11,33 +11,26 @@ if __name__ == "__main__":
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1",
-        'data_path': "univ1_pt1_single_336_48_18_1000.pkl",
+        'data_path': "univ1_pt1_single_336_48_12_1000.pkl",
         'seq_len': 336,
         'label_len': 48,
-        'pred_len': 18,
+        'pred_len': 12,
         'features': "M",
         'target': "M",
         'num_workers': 1,
         'embed': 'timeF',
+        'random_seed': 1221
     }
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='val')  #, collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='train')  #, collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        try:
-            batch_x.float()
-            batch_y.float()
-            batch_x_mark.float()
-            batch_y_mark.float()
-        except Exception:
-            print(batch_x)
         if i % 100 == 0:
             print(f"\tTrain {i / len(train_loader)} ")
 
-    sys.exit(0)
 
     train_data, train_loader = data_provider(config, flag='test')
     print("Length: ", len(train_data))

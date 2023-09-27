@@ -24,7 +24,7 @@ warnings.filterwarnings('ignore')
 class Dataset_Traffic_Singe_Packets(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',
-                 target='OT', scale=True, timeenc=0, freq='h'):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100):
         # size [seq_len, label_len, pred_len]
         self.seq_len = size[0]
         self.label_len = size[1]
@@ -37,22 +37,9 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         self.root_path = root_path
         self.data_path = data_path[1:] if data_path.startswith('/') or data_path.startswith('\\') else data_path
 
-        self.__read_data__()
+        self.random_seed = random_seed
 
-    # def __prepare_data__(self):
-    #     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    #     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_new.pcap'
-    #     save_path = os.path.join(self.root_path, self.data_path)
-    #
-    #     data_transformer = DataTransformerSinglePacketsEven(path, max_flows=50, seq_len=self.seq_len,
-    #                                                         max_mil_seq=200,
-    #                                                         label_len=self.label_len,
-    #                                                         pred_len=self.pred_len,
-    #                                                         step_size=1)  # change step size for more/fewer data
-    #
-    #     data_transformer.save_tensor(save_path)
-    #     print("<<<<<<<<<<<<<<<< End >>>>>>>>>>>>>>>>")
-    #     return data_transformer.data
+        self.__read_data__()
 
     def __read_data__(self):
         save_path = os.path.join(self.root_path, self.data_path)
@@ -78,9 +65,11 @@ class Dataset_Traffic_Singe_Packets(Dataset):
             raise IndexError("Seq_x and Seq_y have to be of the same size")
 
         # randomize
-        # permutation_indexes = np.random.permutation(len(seq_x))
-        # seq_x = seq_x[permutation_indexes]
-        # seq_y = seq_y[permutation_indexes]
+        random.seed(self.random_seed)
+        random.shuffle(seq_x)
+
+        random.seed(self.random_seed)
+        random.shuffle(seq_y)
 
         # split flows and normalize
         sizes = [0.7, 0.85]
@@ -119,7 +108,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
 class Dataset_Traffic_Even(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',
-                 target='OT', scale=True, timeenc=0, freq='h'):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100):
         # size [seq_len, label_len, pred_len]
         self.seq_len = size[0]
         self.label_len = size[1]
@@ -131,21 +120,9 @@ class Dataset_Traffic_Even(Dataset):
         self.root_path = root_path
         self.data_path = data_path
 
-        self.__read_data__()
+        self.random_seed = random_seed
 
-    # def __prepare_data__(self):
-    #     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    #     load_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1'  # _new.pcap
-    #     save_path = os.path.join(self.root_path, self.data_path)
-    #
-    #     data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=self.seq_len,
-    #                                            label_len=self.label_len,
-    #                                            pred_len=self.pred_len,
-    #                                            step_size=1)  # change step size for more/fewer data
-    #
-    #     data_transformer.save_tensor(save_path)
-    #     print("<<<<<<<<<<<<<<<< End >>>>>>>>>>>>>>>>")
-    #     return data_transformer.data
+        self.__read_data__()
 
     def __read_data__(self):
         save_path = os.path.join(self.root_path, self.data_path)
@@ -165,6 +142,10 @@ class Dataset_Traffic_Even(Dataset):
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
         data = data['flow_seq']
+
+        # randomize
+        random.seed(self.random_seed)
+        random.shuffle(data)
 
         # split flows and normalize
         scaler = StandardScalerNp()
@@ -195,7 +176,7 @@ class Dataset_Traffic_Even(Dataset):
 class Dataset_ETT_hour(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h'):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -287,7 +268,7 @@ class Dataset_ETT_hour(Dataset):
 class Dataset_ETT_minute(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTm1.csv',
-                 target='OT', scale=True, timeenc=0, freq='t'):
+                 target='OT', scale=True, timeenc=0, freq='t', random_seed=1000):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -377,7 +358,7 @@ class Dataset_ETT_minute(Dataset):
 class Dataset_Custom(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h'):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -478,7 +459,7 @@ class Dataset_Custom(Dataset):
 class Dataset_Pred(Dataset):
     def __init__(self, root_path, flag='pred', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, inverse=False, timeenc=0, freq='15min', cols=None):
+                 target='OT', scale=True, inverse=False, timeenc=0, freq='15min', cols=None, random_seed=1000):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:

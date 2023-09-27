@@ -5,8 +5,6 @@ from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Data
     Dataset_Traffic_Singe_Packets, Dataset_Traffic_Even
 from torch.utils.data import DataLoader
 
-from utils import padded_collate
-
 data_dict = {
     'ETTh1': Dataset_ETT_hour,
     'ETTh2': Dataset_ETT_hour,
@@ -47,7 +45,8 @@ def data_provider(args, flag, collate_fn=None):
         features=args.features,
         target=args.target,
         timeenc=timeenc,
-        freq=freq
+        freq=freq,
+        random_seed=args.random_seed
     )
     print(flag, len(data_set))
     data_loader = DataLoader(
