@@ -21,6 +21,26 @@ from utils.tools import parse_unix_time, split_list, split_list_percentage
 warnings.filterwarnings('ignore')
 
 
+class Dataset_Test(Dataset):
+    def __init__(self, root_path, flag='train', size=None,
+                 features='S', data_path='ETTh1.csv',
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000):
+        self.seq_len = size[0]
+        self.label_len = size[1]
+        self.pred_len = size[2]
+
+    def __getitem__(self, index):
+        seq_x = torch.zeros((self.seq_len, 1))
+        seq_y = torch.zeros((self.label_len + self.pred_len, 1))
+
+        seq_x_mark = torch.zeros((self.seq_len, 1))
+        seq_y_mark = torch.zeros((self.seq_len, 1))
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+    def __len__(self):
+        return 1000
+
 class Dataset_Traffic_Singe_Packets(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',

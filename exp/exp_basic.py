@@ -7,8 +7,6 @@ class Exp_Basic(object):
         self.args = args
         self.device = self._acquire_device()
         self.model = self._build_model().to(self.device)
-        self.model_optim = self._select_optimizer()
-        self.criterion = self._select_criterion()
 
     def _build_model(self):
         raise NotImplementedError
@@ -25,25 +23,13 @@ class Exp_Basic(object):
         return device
 
     @abc.abstractmethod
-    def _select_criterion(self):
+    def vali(self, val_data, val_loader, criterion):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _select_optimizer(self):
+    def train(self, epoch: int, train_data, train_loader, criterion, model_optim):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_data(self, flag):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def vali(self):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def train(self, epoch: int):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def test(self):
+    def test(self, test_data, test_loader):
         raise NotImplementedError

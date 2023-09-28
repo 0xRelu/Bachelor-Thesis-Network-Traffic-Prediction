@@ -10,4 +10,4 @@ python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_uneven/tr
 
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_uneven/transformer/config_informer.yaml
 
-python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_uneven/transformer/config_non_stationary.yaml
+# python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_uneven/transformer/config_non_stationary.yaml

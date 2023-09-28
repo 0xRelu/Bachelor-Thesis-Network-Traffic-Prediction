@@ -4,7 +4,7 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: NLinear-Job-Traffic-Single    # this will be the experiment's name in slurm
+job-name: Test-Job  # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
-iterations: 100  # number of iterations per repetition
+iterations: 2  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,7 +35,7 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1 # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1 #  #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1 # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: OT # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
@@ -46,7 +46,7 @@ params:
   # Forecasting task
   seq_len: 336 # input sequence length
   label_len: 48 # start token length
-  # pred_len: 30 # prediction sequence length
+  pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -66,24 +66,19 @@ params:
   use_multi_gpu: 0 # check
 
   # data
-  data: Traffic_Single
+  data: Test
 
-list:
-  data_path: [univ1_pt1_single_336_48_12_1000.pkl, univ1_pt1_single_336_48_18_1000.pkl, univ1_pt1_single_336_48_24_1000.pkl, univ1_pt1_single_336_48_30_1000.pkl]
-  pred_len: [12, 18, 24, 30]
-
-
-###############################################   NLINEAR   ###############################################
+###############################################   RLINEAR   ###############################################
 ---
-# NLinear Experiment
-name: NLinear-Traffic-Single
+# RLinear Experiment
+name: Test-Run
 
 params:
-  model_id: NLinear
-  model: NLinear
+  model_id: TestLinear
+  model: TestLinear
 
 wandb:
-    project: NLinear-Traffic-Single-v6
+    project: Test-Run
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

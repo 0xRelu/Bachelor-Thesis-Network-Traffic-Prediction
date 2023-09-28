@@ -40,7 +40,7 @@ params:
   target: OT # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
-  random_seed: 1234
+  random_seed: 4321
 
   # Forecasting task
   seq_len: 336 # input sequence length
@@ -106,7 +106,7 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: Non-Stationary-Transformer-Traffic-Even-v5
+    project: Non-Stationary-Transformer-Traffic-Even-v6
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

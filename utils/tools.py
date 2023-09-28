@@ -9,7 +9,7 @@ import torch
 # plt.switch_backend('agg')
 
 
-def adjust_learning_rate(optimizer, scheduler, epoch, args, printout=True):
+def adjust_learning_rate(optimizer, epoch, args, printout=True):
     # lr = args.learning_rate * (0.2 ** (epoch // 2))
     if args.lradj == 'type1':
         lr_adjust = {epoch: args.learning_rate * (0.5 ** ((epoch - 1) // 1))}
@@ -121,7 +121,7 @@ def split_list(list_to_split: list, percentages) -> list[list]:
 
 def split_list_percentage(list_to_split: list, percentages: list) -> list:
     list_to_split = list(itertools.chain(*list_to_split))
-    percentages = [0] + [int(percentage * len(list_to_split)) for percentage in percentages] + [len(list_to_split)] # percentages have to be ..<..<..< e.g. [0.6, 0.8, 0.9]
+    percentages = [0] + [int(percentage * len(list_to_split)) for percentage in percentages] + [len(list_to_split)]  # percentages have to be ..<..<..< e.g. [0.6, 0.8, 0.9]
 
     split_list = []
 

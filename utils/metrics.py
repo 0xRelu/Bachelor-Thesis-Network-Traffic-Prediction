@@ -7,9 +7,8 @@ def RSE(pred, true):
 
 def CORR(pred, true):
     u = ((true - true.mean(0)) * (pred - pred.mean(0))).sum(0)
-    d = np.sqrt(((true - true.mean(0)) ** 2 * (pred - pred.mean(0)) ** 2).sum(0))
-    d += 1e-12
-    return 0.01*(u / d).mean(-1)
+    d = np.sqrt(((true - true.mean(0)) ** 2).sum(0) * ((pred - pred.mean(0)) ** 2).sum(0))
+    return (u / d).mean(-1)
 
 
 def MAE(pred, true):
@@ -38,7 +37,5 @@ def metric(pred, true):
     rmse = RMSE(pred, true)
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
-    rse = RSE(pred, true)
-    corr = CORR(pred, true)
 
-    return mae, mse, rmse, mape, mspe, rse, corr
+    return mae, mse, rmse, mape, mspe
