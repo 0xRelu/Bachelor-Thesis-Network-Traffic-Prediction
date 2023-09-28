@@ -101,7 +101,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         train_y, val_y, test_y = np.stack(train_y), np.stack(val_y), np.stack(test_y)
 
         # scale bytes (not time)
-        scaler = StandardScalerNp()
+        scaler = StandardScaler()
         train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
         test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
         val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
@@ -168,7 +168,7 @@ class Dataset_Traffic_Even(Dataset):
         random.shuffle(data)
 
         # split flows and normalize
-        scaler = StandardScalerNp()
+        scaler = StandardScaler()
         [train, val, test] = split_list_percentage(data, [0.7, 0.85])
         train, val, test = np.stack(train), np.stack(val), np.stack(test)
 

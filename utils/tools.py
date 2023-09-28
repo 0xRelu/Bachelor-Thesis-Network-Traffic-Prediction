@@ -9,7 +9,7 @@ import torch
 # plt.switch_backend('agg')
 
 
-def adjust_learning_rate(optimizer, epoch, args, printout=True):
+def adjust_learning_rate(optimizer, scheduler, epoch, args, printout=True):
     # lr = args.learning_rate * (0.2 ** (epoch // 2))
     if args.lradj == 'type1':
         lr_adjust = {epoch: args.learning_rate * (0.5 ** ((epoch - 1) // 1))}

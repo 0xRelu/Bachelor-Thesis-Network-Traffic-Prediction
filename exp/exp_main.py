@@ -165,7 +165,7 @@ class Exp_Main(Exp_Basic):
             epoch + 1, train_steps, train_loss))
 
         if self.args.lradj != 'TST':
-            adjust_learning_rate(model_optim, epoch + 1, self.args)
+            adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args)
         else:
             print('Updating learning rate to {}'.format(scheduler.get_last_lr()[0]))
 
@@ -220,7 +220,6 @@ class Exp_Main(Exp_Basic):
 
         return {'test_mse': mse, 'test_mae': mae, 'test_rmse': rmse,
                 'test_mape': mape, 'test_mspe': mspe}, trues_preds
-
 
     def predict(self, setting, load=False):  # TODO rework
         pred_data, pred_loader = self._get_data(flag='pred')

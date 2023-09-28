@@ -80,7 +80,6 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
             cw_logging.getLogger().warning("Run crashed with an exception.")
             return
 
-
     def _get_data(self, flag):
         data_set, data_loader = data_provider(self.config, flag)
         return data_set, data_loader
