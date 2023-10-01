@@ -99,7 +99,7 @@ class Exp_Main(Exp_Basic):
 
                 total_loss.append(loss)
 
-                true_pred.append((true, pred))
+                true_pred.append((true.numpy(), pred.numpy()))
         total_loss = np.average(total_loss)
         self.model.train()
         return total_loss, true_pred
@@ -140,7 +140,7 @@ class Exp_Main(Exp_Basic):
             loss = criterion(outputs, batch_y)
             train_loss.append(loss.item())
 
-            trues_preds.append((batch_y, outputs))
+            trues_preds.append((batch_y.detach().cpu().numpy(), outputs.detach().cpu().numpy()))
 
             if (i + 1) % 100 == 0:
                 print("\t iters: {0} | loss: {1:.7f}".format(i + 1, loss.item()))
@@ -192,10 +192,10 @@ class Exp_Main(Exp_Basic):
 
                 outputs, batch_y = self._predict(batch_x, batch_y, batch_x_mark, batch_y_mark)
 
-                trues_preds.append((batch_y, outputs))
-
                 outputs = outputs.detach().cpu().numpy()
                 batch_y = batch_y.detach().cpu().numpy()
+
+                trues_preds.append((batch_y, outputs))
 
                 pred = outputs  # outputs.detach().cpu().numpy()  # .squeeze()
                 true = batch_y  # batch_y.detach().cpu().numpy()  # .squeeze()
@@ -216,7 +216,7 @@ class Exp_Main(Exp_Basic):
         print('test shape:', preds.shape, trues.shape)
 
         mae, mse, rmse, mape, mspe = metric(preds, trues)
-        print('mse:{}, mae:{}'.format(mse, mae))
+        print('mse:{}, mae:{}, rmse:{}'.format(mse, mae, rmse))
 
         return {'test_mse': mse, 'test_mae': mae, 'test_rmse': rmse,
                 'test_mape': mape, 'test_mspe': mspe}, trues_preds

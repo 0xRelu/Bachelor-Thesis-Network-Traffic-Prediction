@@ -1,4 +1,5 @@
 # MY_CW_MAIN.py
+import numpy as np
 from cw2.cw_data.cw_wandb_logger import WandBLogger
 
 import wandb
@@ -9,6 +10,7 @@ from torch import optim, nn
 
 from data_provider.data_factory import data_provider
 from exp.exp_main import Exp_Main
+from utils.metrics import MSE
 from utils.tools import dotdict
 
 
@@ -57,14 +59,24 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         cw_logging.getLogger().info(f"Saving results {title} as plots in wandb...")
         xs = [i for i in range(cw_config['params']['seq_len'] + 1,
                                cw_config['params']['seq_len'] + 1 + cw_config['params']['pred_len'])]
-        y, y_pred = trues_preds[-1]
+        y, y_pred = np.concatenate([elem[0] for elem in trues_preds]), np.concatenate([elem[1] for elem in trues_preds])
+        entry_mse = []
 
-        for i in range(y.size(0)):
-            y_p, y_pred_p = y[i, :, 0].detach().cpu().tolist(), y_pred[i, :, 0].detach().cpu().tolist()
-            wandb.log({f"{title}_ground_truth_prediction_{i}": wandb.plot.line_series(xs=xs, ys=[y_p, y_pred_p],
+        for i in range(len(y)):
+            entry_mse.append((i, MSE(y_pred[i], y[i])))
+
+        entry_mse = sorted(entry_mse, key=lambda x: x[1])
+        entry_mse = entry_mse[:64] + entry_mse[-64:]  # get best and worst predictions
+        entries = list(map(lambda x: x[0], entry_mse))
+        y, y_pred = y[entries], y_pred[entries]
+
+        for i in range(len(y)):
+            y_p, y_pred_p = y[i, :, 0].tolist(), y_pred[i, :, 0].tolist()
+            gb = 'good' if i < (1/2 * len(y)) else 'bad'
+            wandb.log({f"{title}_ground_truth_prediction_{i}_{gb}": wandb.plot.line_series(xs=xs, ys=[y_p, y_pred_p],
                                                                                       keys=['Ground Truth',
                                                                                             'Prediction'],
-                                                                                      title=f"{title} Ground Truth vs. Prediction")})
+                                                                                      title=f"{title} {gb} mse:{entry_mse[i][1]}")})
 
         cw_logging.getLogger().info(f"Finished saving diagrams {title} in wandb!")
 

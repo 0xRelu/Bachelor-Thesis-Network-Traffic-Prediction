@@ -9,7 +9,7 @@ import pandas as pd
 import os
 import torch
 from torch.utils.data import Dataset
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
 from utils.scaler import StandardScalerNp
 # from data_provider.data_preparer import DataTransformerSinglePacketsEven, DatatransformerEven
@@ -39,12 +39,12 @@ class Dataset_Test(Dataset):
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return 1000
+        return 500
 
 class Dataset_Traffic_Singe_Packets(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, use_minmax_scaler=False):
         # size [seq_len, label_len, pred_len]
         self.seq_len = size[0]
         self.label_len = size[1]
@@ -58,6 +58,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         self.data_path = data_path[1:] if data_path.startswith('/') or data_path.startswith('\\') else data_path
 
         self.random_seed = random_seed
+        self.use_minmax_scaler = use_minmax_scaler
 
         self.__read_data__()
 
@@ -101,7 +102,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         train_y, val_y, test_y = np.stack(train_y), np.stack(val_y), np.stack(test_y)
 
         # scale bytes (not time)
-        scaler = StandardScaler()
+        scaler = MinMaxScaler() if self.use_minmax_scaler else StandardScaler()
         train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
         test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
         val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
@@ -128,7 +129,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
 class Dataset_Traffic_Even(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, use_minmax_scaler=False):
         # size [seq_len, label_len, pred_len]
         self.seq_len = size[0]
         self.label_len = size[1]
@@ -141,6 +142,7 @@ class Dataset_Traffic_Even(Dataset):
         self.data_path = data_path
 
         self.random_seed = random_seed
+        self.use_minmax_scaler = use_minmax_scaler
 
         self.__read_data__()
 
@@ -168,7 +170,7 @@ class Dataset_Traffic_Even(Dataset):
         random.shuffle(data)
 
         # split flows and normalize
-        scaler = StandardScaler()
+        scaler = MinMaxScaler() if self.use_minmax_scaler else StandardScaler()
         [train, val, test] = split_list_percentage(data, [0.7, 0.85])
         train, val, test = np.stack(train), np.stack(val), np.stack(test)
 
