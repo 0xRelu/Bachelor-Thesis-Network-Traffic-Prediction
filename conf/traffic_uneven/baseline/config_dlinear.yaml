@@ -10,7 +10,7 @@ job-name: DLinear-Job-Traffic-Single    # this will be the experiment's name in 
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 400  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 100  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
 mem-per-cpu: 4000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -69,8 +69,12 @@ params:
   data: Traffic_Single
 
 list:
-  data_path: [univ1_pt1_single_336_48_12_1000.pkl, univ1_pt1_single_336_48_18_1000.pkl, univ1_pt1_single_336_48_24_1000.pkl, univ1_pt1_single_336_48_30_1000.pkl]
-  pred_len: [12, 18, 24, 30]
+  data_path: [univ1_pt1_single_336_48_12_1000.pkl, univ1_pt1_single_336_48_18_1000.pkl, univ1_pt1_single_336_48_24_1000.pkl, univ1_pt1_single_336_48_30_1000.pkl,
+              univ1_pt1_single_336_48_12_100.pkl, univ1_pt1_single_336_48_18_100.pkl, univ1_pt1_single_336_48_24_100.pkl, univ1_pt1_single_336_48_30_100.pkl,
+              univ1_pt1_single_336_48_12_10.pkl, univ1_pt1_single_336_48_18_10.pkl, univ1_pt1_single_336_48_24_10.pkl, univ1_pt1_single_336_48_30_10.pkl,]
+  pred_len: [12, 18, 24, 30,
+             12, 18, 24, 30,
+             12, 18, 24, 30]
 
 ###############################################   DLINEAR   ###############################################
 ---
@@ -84,7 +88,7 @@ params:
   individual: False
 
 wandb:
-    project: DLinear-Traffic-Single-v6
+    project: DLinear-Traffic-Single-v7
     group: alr
     #sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
