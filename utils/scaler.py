@@ -67,7 +67,7 @@ class MinMaxScalerNp:
     def fit(self, values: np.ndarray):
         # dims = list(range(values.ndim() - 1))
         self.min = np.min(values)
-        self.max = np.min(values)
+        self.max = np.max(values)
         self.zero_element = self.transform(0)
 
     def transform(self, values):
