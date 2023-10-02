@@ -47,7 +47,8 @@ def data_provider(args, flag, collate_fn=None):
         target=args.target,
         timeenc=timeenc,
         freq=freq,
-        random_seed=args.random_seed
+        random_seed=args.random_seed,
+        use_minmax_scaler=args.use_minmax_scaler
     )
     print(flag, len(data_set))
     data_loader = DataLoader(

@@ -7,6 +7,7 @@ import os
 import pickle
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy import ndarray
 from scapy.layers.inet import TCP, UDP, IP, ICMP
@@ -323,6 +324,19 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         return seq_x, seq_y
 
 
+def visualize_flows(file_path: str):
+    with open(file_path, 'rb') as f:
+        data = pickle.load(f)
+
+    for flow in data:
+        parsed_flow = _list_milliseconds_only_sizes_(flow, 1000)
+
+        zeros = np.count_nonzero(parsed_flow[:, 1])
+        values = len(parsed_flow)
+
+        print(f"{zeros} / {values}")
+
+
 def __create_split_flow_files__():
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1'  # _test
     path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test'  #
@@ -367,10 +381,11 @@ if __name__ == "__main__":
     preds = [12, 18, 24, 30]
     aggregation_time = [1000, 100, 10, 1]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
+    visualize_flows(path)
     # __create_split_flow_files__() # only if packets got changed
 
-    __save_even__(preds, path, aggregation_time)
-    __save_single__(preds, path, aggregation_time)
+    #__save_even__(preds, path, aggregation_time)
+    #__save_single__(preds, path, aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
     sys.exit(0)
