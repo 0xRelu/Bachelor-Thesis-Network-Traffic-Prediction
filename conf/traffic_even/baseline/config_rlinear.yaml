@@ -70,12 +70,8 @@ params:
   data: Traffic_Even
 
 list:
-  data_path: [univ1_pt1_even_336_48_12_1000.pkl, univ1_pt1_even_336_48_18_1000.pkl, univ1_pt1_even_336_48_24_1000.pkl, univ1_pt1_even_336_48_30_1000.pkl,
-              univ1_pt1_even_336_48_12_100.pkl, univ1_pt1_even_336_48_18_100.pkl, univ1_pt1_even_336_48_24_100.pkl, univ1_pt1_even_336_48_30_100.pkl,
-              univ1_pt1_even_336_48_12_10.pkl, univ1_pt1_even_336_48_18_10.pkl, univ1_pt1_even_336_48_24_10.pkl, univ1_pt1_even_336_48_30_10.pkl,]
-  pred_len: [12, 18, 24, 30,
-             12, 18, 24, 30,
-             12, 18, 24, 30]
+  data_path: [univ1_pt1_even_2_336_48_12_1000.pkl, univ1_pt1_even_2_336_48_18_1000.pkl, univ1_pt1_even_2_336_48_24_1000.pkl, univ1_pt1_even_2_336_48_30_1000.pkl]
+  pred_len: [12, 18, 24, 30]
 
 ###############################################   RLINEAR   ###############################################
 ---
@@ -91,7 +87,7 @@ params:
   rev: 1
 
 wandb:
-    project: RLinear-Traffic-Even-v7
+    project: RLinear-Traffic-Even-v10
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from layers.Transformer_EncDec import Decoder, DecoderLayer, Encoder, EncoderLayer, ConvLayer
 from layers.SelfAttention_Family import FullAttention, AttentionLayer
 from layers.Embed import DataEmbedding, DataEmbedding_wo_pos, DataEmbedding_wo_temp, DataEmbedding_wo_pos_temp, \
-    DataEmbedding_w_temp, DataEmbedding_w_dir_temp
+    DataEmbedding_w_temp, DataEmbedding_w_dir_temp, DataEmbedding_n
 import numpy as np
 
 
@@ -46,10 +46,10 @@ class Model(nn.Module):
             self.dec_embedding = DataEmbedding_wo_pos_temp(configs.dec_in, configs.d_model, configs.embed, configs.freq,
                                                            configs.dropout)
         elif configs.embed_type == 5:
-            self.enc_embedding = DataEmbedding_w_temp(configs.enc_in, configs.d_model, configs.embed, configs.freq,
-                                                      configs.dropout)
-            self.dec_embedding = DataEmbedding_w_temp(configs.dec_in, configs.d_model, configs.embed, configs.freq,
-                                                      configs.dropout)
+            self.enc_embedding = DataEmbedding_n(configs.enc_in, configs.d_model, configs.embed, configs.freq,
+                                                 configs.dropout)
+            self.dec_embedding = DataEmbedding_n(configs.dec_in, configs.d_model, configs.embed, configs.freq,
+                                                 configs.dropout)
         elif configs.embed_type == 6:
             self.enc_embedding = DataEmbedding_w_dir_temp(configs.enc_in, configs.d_model, configs.embed, configs.freq,
                                                           configs.dropout)

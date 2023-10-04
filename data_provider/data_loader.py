@@ -79,33 +79,35 @@ class Dataset_Traffic_Singe_Packets(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        seq_x = data['flow_seq']['x']
-        seq_y = data['flow_seq']['y']
+        train_x = data['train_x']
+        train_y = data['train_y']
+        val_test_x = data['test_x']
+        val_test_y = data['test_y']
 
-        if len(seq_x) != len(seq_y):
-            raise IndexError("Seq_x and Seq_y have to be of the same size")
+        val_x, test_x = val_test_x[:int(0.5 * len(val_test_x))], val_test_x[int(0.5 * len(val_test_x)):]
+        val_y, test_y = val_test_y[:int(0.5 * len(val_test_y))], val_test_y[int(0.5 * len(val_test_y)):]
 
-        # randomize
-        random.seed(self.random_seed)
-        random.shuffle(seq_x)
-
-        random.seed(self.random_seed)
-        random.shuffle(seq_y)
-
-        # split flows and normalize
-        sizes = [0.7, 0.85]
-
-        [train_x, val_x, test_x] = split_list_percentage(seq_x, sizes)
-        train_x, val_x, test_x = np.stack(train_x), np.stack(val_x), np.stack(test_x)
-
-        [train_y, val_y, test_y] = split_list_percentage(seq_y,  sizes)
-        train_y, val_y, test_y = np.stack(train_y), np.stack(val_y), np.stack(test_y)
-
-        # scale bytes (not time)
-        scaler = MinMaxScalerNp() if self.use_minmax_scaler else StandardScalerNp()
-        train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
-        test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
-        val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
+        # # randomize
+        # random.seed(self.random_seed)
+        # random.shuffle(seq_x)
+        #
+        # random.seed(self.random_seed)
+        # random.shuffle(seq_y)
+        #
+        # # split flows and normalize
+        # sizes = [0.7, 0.85]
+        #
+        # [train_x, val_x, test_x] = split_list_percentage(seq_x, sizes)
+        # train_x, val_x, test_x = np.stack(train_x), np.stack(val_x), np.stack(test_x)
+        #
+        # [train_y, val_y, test_y] = split_list_percentage(seq_y,  sizes)
+        # train_y, val_y, test_y = np.stack(train_y), np.stack(val_y), np.stack(test_y)
+        #
+        # # scale bytes (not time)
+        # scaler = MinMaxScalerNp() if self.use_minmax_scaler else StandardScalerNp()
+        # train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
+        # test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
+        # val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
 
         self.seq_x = [train_x, val_x, test_x][self.set_type]
         self.seq_y = [train_y, val_y, test_y][self.set_type]
@@ -163,20 +165,22 @@ class Dataset_Traffic_Even(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        data = data['flow_seq']
+        train, val_test = data['train'], data['test']
+        val, test = val_test[:int(0.5 * len(val_test))], val_test[int(0.5 * len(val_test)):]
 
         # randomize
-        random.seed(self.random_seed)
-        random.shuffle(data)
+        # random.seed(self.random_seed)
+        # random.shuffle(data)
 
         # split flows and normalize
-        scaler = MinMaxScalerNp() if self.use_minmax_scaler else StandardScalerNp()
-        [train, val, test] = split_list_percentage(data, [0.7, 0.85])
-        train, val, test = np.stack(train), np.stack(val), np.stack(test)
-
-        train[:, :, 1] = scaler.fit_transform(train[:, :, 1])
-        test[:, :, 1] = scaler.transform(test[:, :, 1])
-        val[:, :, 1] = scaler.transform(val[:, :, 1])
+        # scaler = MinMaxScalerNp() if self.use_minmax_scaler else StandardScalerNp()
+        # [train, val, test] = split_list_percentage(data, [0.7, 0.85])
+        # train, val, test = np.stack(train), np.stack(val), np.stack(test)
+        #
+        # train[:, :, 1] = scaler.fit_transform(train[:, :, 1])
+        # print(f"Mean: {scaler.mean} | Std: {scaler.std}")
+        # test[:, :, 1] = scaler.transform(test[:, :, 1])
+        # val[:, :, 1] = scaler.transform(val[:, :, 1])
 
         self.seq = [train, val, test][self.set_type]
 

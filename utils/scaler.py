@@ -33,7 +33,6 @@ class StandardScaler:
 
 
 class StandardScalerNp:
-
     def __init__(self, mean=None, std=None, zero_element=None, epsilon=1e-7):
         self.mean = mean
         self.std = std
@@ -79,3 +78,41 @@ class MinMaxScalerNp:
 
     def inverse_transform(self, values):
         return (values * (self.max - self.min + self.epsilon)) + self.min
+
+
+class LogScalerNp:
+    def fit(self, values: np.ndarray):
+        pass
+
+    def transform(self, values):
+        constant = 1.0
+        return np.log(values + 1.0)
+
+    def fit_transform(self, values):
+        self.fit(values)
+        return self.transform(values)
+
+    def inverse_transform(self, values):
+        return np.exp(values)
+
+
+class RobustScalerNp:
+    def __init__(self, mean=None, quantile_75=None, quantile_25=None):
+        self.mean = mean
+        self.quantile_75 = quantile_75
+        self.quantile_25 = quantile_25
+
+    def fit(self, values: np.ndarray):
+        self.mean = np.mean(values)
+        self.quantile_75 = np.percentile(values, 75)
+        self.quantile_25 = np.percentile(values, 25)
+
+    def transform(self, values: np.ndarray):
+        return (values - self.mean) / (self.quantile_75 - self.quantile_25)
+
+    def fit_transform(self, values):
+        self.fit(values)
+        return self.transform(values)
+
+    def inverse_transform(self, values):
+        return values * (self.quantile_75 - self.quantile_25) + self.mean

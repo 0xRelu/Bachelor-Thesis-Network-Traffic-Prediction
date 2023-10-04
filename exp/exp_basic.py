@@ -33,3 +33,7 @@ class Exp_Basic(object):
     @abc.abstractmethod
     def test(self, test_data, test_loader):
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def predict(self, pred_data, pred_loader, load=False):
+        raise NotImplementedError

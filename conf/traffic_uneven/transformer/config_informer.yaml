@@ -41,7 +41,7 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
   random_seed: 12
-  use_minmax_scaler: True
+  use_minmax_scaler: False
 
   # Forecasting task
   seq_len: 336 # input sequence length
