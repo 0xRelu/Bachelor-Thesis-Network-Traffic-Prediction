@@ -38,7 +38,7 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
                                                            model_optim=self.model_optim)  # train step
         vali_loss, trues_preds_vali = self.expMain.vali(vali_data=self.vali_data, vali_loader=self.vali_loader,
                                                         criterion=self.criterion)  # vali
-        test_loss, trues_preds_test = self.expMain.vali(vali_data=self.test_data, vali_loader=self.vali_loader,
+        test_loss, trues_preds_test = self.expMain.vali(vali_data=self.test_data, vali_loader=self.test_loader,
                                                         criterion=self.criterion)  # test
 
         cw_logging.getLogger().info(f"epoch: {n} | train loss: {train_loss} | vali loss: {vali_loss} | test loss: {test_loss}")
@@ -46,12 +46,13 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
 
         # log results as diagrams
         if n + 1 == cw_config['iterations']:
-            self.__log_trues_preds__(cw_config, trues_preds_train, "train")
-            self.__log_trues_preds__(cw_config, trues_preds_test, "test")
-            self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
+            # self.__log_trues_preds__(cw_config, trues_preds_train, "train")
+            # self.__log_trues_preds__(cw_config, trues_preds_test, "test")
+            # self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
 
-            test_results, _ = self.expMain.test(test_data=self.test_data, test_loader=self.test_loader)  # get metrics
-            results.update(test_results)
+            test_results_not_scaled, _ = self.expMain.test(test_data=self.test_data, test_loader=self.test_loader, inverse_scale=True)
+            results.update(test_results_not_scaled)
+            print(results)
 
         return results
 

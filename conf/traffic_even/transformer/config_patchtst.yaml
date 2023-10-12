@@ -20,7 +20,7 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #  #  #
+path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results  # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #  #  #
 repetitions: 1    # number of times one set of parameters is run
 iterations: 10  # number of iterations per repetition
 
@@ -101,9 +101,20 @@ params:
   activation: gelu # activation
   output_attention: False # whether to output attention in encoder
   do_predict: False # whether to predict unseen future data
+  fc_dropout: 0.05
+  head_dropout: 0.0
+  patch_len: 16
+  stride: 8
+  padding_patch: 'end'
+  revin: 1
+  affine: 0
+  subtract_last: 0
+  decomposition: 0
+  kernel_size: 25
+  individual: 0
 
 wandb:
-    project: Vanilla-Transformer-Traffic-Even-v10-test
+    project: PatchTST-Traffic-Even-v10-test
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

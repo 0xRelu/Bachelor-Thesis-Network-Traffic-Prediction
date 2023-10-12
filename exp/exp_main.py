@@ -171,7 +171,7 @@ class Exp_Main(Exp_Basic):
 
         return train_loss, trues_preds
 
-    def test(self, test_data, test_loader, test=0):
+    def test(self, test_data, test_loader, test=0, inverse_scale=False):
         if test:
             print('loading model')
             # TODO load model
@@ -210,6 +210,21 @@ class Exp_Main(Exp_Basic):
 
         preds = np.concatenate(preds, axis=0)
         trues = np.concatenate(trues, axis=0)
+
+        results = {}
+
+        if inverse_scale:
+            preds_inverse = test_data.inverse_transform(preds)
+            trues_inverse = test_data.inverse_transform(trues)
+
+            preds_inverse = preds_inverse.reshape(-1, preds_inverse.shape[-2], preds_inverse.shape[-1])
+            trues_inverse = trues_inverse.reshape(-1, trues_inverse.shape[-2], trues_inverse.shape[-1])
+
+            mae, mse, rmse, mape, mspe = metric(preds_inverse, trues_inverse)
+            results.update({'real_test_mse': mse, 'real_test_mae': mae, 'real_test_rmse': rmse,
+                    'real_test_mape': mape, 'real_test_mspe': mspe})
+
+
         print('test shape:', preds.shape, trues.shape)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
         trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
@@ -218,8 +233,10 @@ class Exp_Main(Exp_Basic):
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}, rmse:{}'.format(mse, mae, rmse))
 
-        return {'test_mse': mse, 'test_mae': mae, 'test_rmse': rmse,
-                'test_mape': mape, 'test_mspe': mspe}, trues_preds
+        results.update({'test_mse': mse, 'test_mae': mae, 'test_rmse': rmse,
+                'test_mape': mape, 'test_mspe': mspe})
+
+        return results, trues_preds
 
     def predict(self, pred_data, pred_loader, load=False):
         if load:

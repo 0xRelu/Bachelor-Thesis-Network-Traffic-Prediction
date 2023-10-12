@@ -147,7 +147,8 @@ def _split_flow(split_flow: np.ndarray, x: int, aggregation_time: int):
             current_split.append(value)
             zero_counter += 1
             if zero_counter > x:
-                before, after = before_after(int(current_split[0][0].item() * aggregation_time), int(current_split[-1][0].item() * aggregation_time))
+                before, after = before_after(int(current_split[0][0].item() * aggregation_time),
+                                             int(current_split[-1][0].item() * aggregation_time))
                 splits.append(np.stack(before + current_split + after))
                 current_split = []
                 zero_counter = 0
@@ -156,7 +157,8 @@ def _split_flow(split_flow: np.ndarray, x: int, aggregation_time: int):
             zero_counter = 0
 
     if len(current_split) > 0:
-        before, after = before_after(int(current_split[0][0].item() * aggregation_time), int(current_split[-1][0].item() * aggregation_time))
+        before, after = before_after(int(current_split[0][0].item() * aggregation_time),
+                                     int(current_split[-1][0].item() * aggregation_time))
         splits.append(np.stack(before + current_split + after))
 
     return splits
@@ -187,7 +189,8 @@ def _split_flow_list(split_flow: list, x: int, aggregation_time: int):
             current_split.append(value)
             zero_counter += 1
             if zero_counter > x:
-                before, after = before_after(int(current_split[0][0] * aggregation_time), int(current_split[-1][0] * aggregation_time))
+                before, after = before_after(int(current_split[0][0] * aggregation_time),
+                                             int(current_split[-1][0] * aggregation_time))
                 splits.append(before + current_split + after)
                 current_split = []
                 zero_counter = 0
@@ -196,7 +199,8 @@ def _split_flow_list(split_flow: list, x: int, aggregation_time: int):
             zero_counter = 0
 
     if len(current_split) > 0:
-        before, after = before_after(int(current_split[0][0] * aggregation_time), int(current_split[-1][0] * aggregation_time))
+        before, after = before_after(int(current_split[0][0] * aggregation_time),
+                                     int(current_split[-1][0] * aggregation_time))
         splits.append(before + current_split + after)
 
     return splits
@@ -232,7 +236,7 @@ class DataTransformerBase:
 
 
 class DatatransformerEven(DataTransformerBase):
-    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, step_size=1,
+    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, filter_size:int = 4, step_size=1,
                  aggregation_time=1000, processes=4):
         self.max_flows = max_flows
         self.seq_len = seq_len
@@ -245,6 +249,7 @@ class DatatransformerEven(DataTransformerBase):
         self.label_len = label_len
         self.pred_len = pred_len
         self.step_size = step_size
+        self.filter_size = filter_size
 
         super().__init__(file_path)
 
@@ -258,7 +263,7 @@ class DatatransformerEven(DataTransformerBase):
         data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, self.aggregation_time, flow) for flow in range(len(data_flows))]
+                   self.pred_len, self.step_size, self.aggregation_time, self.filter_size, flow) for flow in range(len(data_flows))]
 
         process_pool = multiprocessing.Pool(processes=self.processes)
         results = process_pool.starmap(self.__create_sequences__, params)
@@ -269,91 +274,38 @@ class DatatransformerEven(DataTransformerBase):
         for res in results:
             flow_seq += res
 
-        if len(flow_seq) == 0:
-            flows = {
-                'shape': (self.seq_len, self.label_len, self.pred_len),
-                'train': [],
-                'test': []
-            }
-
-            print(f"[+] Found sequences: {sum([len(x) for x in flow_seq])} in {len(flow_seq)} flows sequences")
-            return flows
-
-        # split in test and train
-        seq_count = sum(map(lambda x: len(x[0]), flow_seq))
-        flow_seq = sorted(flow_seq, key=lambda x: len(x[0]), reverse=True)
-
-        train_size = 0.6 * seq_count
-        train_seq = []
-        test_seq = []
-
-        for i in range(len(flow_seq)):
-            if sum(map(lambda x: len(x[0]), train_seq)) > train_size:
-                test_seq = flow_seq[i:]
-                break
-
-            train_seq.append(flow_seq[i])
-
-        # normalize
-        total_length = sum(map(lambda x: x[-1], train_seq))  # != seq_count
-        mean = sum([(f[-1] / total_length) * f[1] for f in train_seq])
-        std = math.sqrt(sum([(f[-1] / total_length) * f[2] for f in train_seq]))
-
-        train_seq = np.concatenate(list(map(lambda x: x[0], train_seq)))
-        test_seq = np.concatenate(list(map(lambda x: x[0], test_seq)))
-
-        # scaler = RobustScalerNp(mean=mean, quantile_75=quantile_75, quantile_25=quantile_25)
-        # train_seq[:, :, 1] = scaler.transform(train_seq[:, :, 1])
-        # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
-
-        # scaler = StandardScalerNp(mean=mean, std=std)
-        # train_seq[:, :, 1] = scaler.transform(train_seq[:, :, 1])
-        # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
-
-        scaler = LogScalerNp()
-        train_seq[:, :, 1] = scaler.transform(train_seq[:, :, 1])
-        test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
-
-        scaler = MinMaxScalerNp()
-        train_seq[:, :, 1] = scaler.fit_transform(train_seq[:, :, 1])
-        test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
-
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
-            'train': train_seq,
-            'test': test_seq
+            'data': flow_seq,
         }
 
-        print(f"[+] Found sequences: {len(train_seq) + len(test_seq)}")
+        print(f"[+] Found sequences: {sum([len(x[0]) for x in flow_seq])} in {len(flow_seq)} flows sequences")
         return flows
 
     @staticmethod
     def __create_sequences__(data_flows: list[np.ndarray], seq_len: int, label_len: int, pred_len: int, step_size: int,
-                             aggregation_time: int, flow_id: int):
+                             aggregation_time: int, filter_size: int, flow_id: int):
         seq = []
         counter = 0
 
         for flow in data_flows:
             flow = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=aggregation_time)  # aggregate
-            # flow[:, 1] = np.log(flow[:, 1] + 1)  # log transform
-            flow = _split_flow(flow, seq_len, aggregation_time)  # delete unnecessary zeros
 
-            combined_splitted_flows = np.concatenate([arr[:, 1:] for arr in flow])
-            mean = np.mean(combined_splitted_flows)
-            var = np.var(combined_splitted_flows)
-            length = len(combined_splitted_flows)
+            only_sizes = flow[:, 1]
+            without_zeros = only_sizes[np.nonzero(only_sizes)]
+            mean = np.mean(without_zeros)
+            var = np.var(without_zeros)
+            length = len(without_zeros)
 
             flow_seq = []
-            for splitted_flow in flow:
-                for i in range(0, len(splitted_flow) - seq_len - pred_len, step_size):  # len(flow)
-                    potential_seq = splitted_flow[i: i + seq_len + pred_len]
-                    zero_element = 0  # scaler.zero_element()
+            for i in range(0, len(flow) - seq_len - pred_len, step_size):  # len(flow)
+                potential_seq = flow[i: i + seq_len + pred_len]
+                zero_element = 0  # scaler.zero_element()
 
-                    if np.sum(potential_seq[:seq_len, 1] != zero_element) < (seq_len / 4) \
-                            or np.sum(potential_seq[-pred_len:, 1] != zero_element) < (pred_len / 4):
-                        continue
+                if np.sum(potential_seq[:seq_len, 1] != zero_element) < filter_size:
+                    continue
 
-                    flow_seq.append(potential_seq)
+                flow_seq.append(potential_seq)
 
             if len(flow_seq) != 0:
                 seq.append((flow_seq, mean, var, length))
@@ -364,12 +316,13 @@ class DatatransformerEven(DataTransformerBase):
 
 class DataTransformerSinglePacketsEven(DataTransformerBase):
     def __init__(self, pcap_file_path: str, max_flows: int, seq_len: int, max_mil_seq: int, label_len: int,
-                 pred_len: int, step_size=1, aggregation_time=1000, processes=4):
+                 pred_len: int, filter_size: int, step_size=1, aggregation_time=1000, processes=4):
         self.max_flows = max_flows
         self.seq_len = seq_len
         self.max_mil_seq = max_mil_seq
         self.processes = processes
         self.aggregation_time = aggregation_time
+        self.filter_size = filter_size
 
         if label_len > seq_len:
             raise AttributeError("Label length has to be smaller then the sequence length")
@@ -386,11 +339,10 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        # data_flows = self._list_milliseconds_(data_flows, self.aggregation_time)  # [ [ time, [packets] ] ]
         data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, self.max_mil_seq, self.aggregation_time, flow) for flow in
+                   self.pred_len, self.step_size, self.max_mil_seq, self.aggregation_time, self.filter_size, flow) for flow in
                   range(len(data_flows))]
 
         process_pool = multiprocessing.Pool(processes=self.processes)
@@ -403,130 +355,67 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
             flow_seq_x += x
             flow_seq_y += y
 
-        if len(flow_seq_x) == 0:
-            flows = {
-                'shape': (self.seq_len, self.label_len, self.pred_len),
-                'train_x': [],
-                'train_y': [],
-                'test_x': [],
-                'test_y': []
-            }
-
-            print(f"[+] Found sequences: {sum([len(x) for x in flow_seq_x])} in {len(flow_seq_x)} flows sequences")
-            return flows
-
-        # split in test and train
-        seq_count = sum(map(lambda x: len(x), flow_seq_x))  # len(x) == len(y)
-        flow_seq_x = sorted(flow_seq_x, key=lambda x: len(x), reverse=True)
-        flow_seq_y = sorted(flow_seq_y, key=lambda x: len(x), reverse=True)
-
-        train_size = 0.6 * seq_count
-        train_seq_x = []
-        train_seq_y = []
-
-        test_seq_x = []
-        test_seq_y = []
-
-        for i in range(len(flow_seq_x)):
-            if sum(map(lambda x: len(x), train_seq_x)) > train_size:
-                test_seq_x = flow_seq_x[i:]
-                test_seq_y = flow_seq_y[i:]
-                break
-
-            train_seq_x.append(flow_seq_x[i])
-            train_seq_y.append(flow_seq_y[i])
-
-        # normalize
-        # total_length = sum(map(lambda x: x[-1], train_seq))  # != seq_count
-        # mean = sum([(f[-1] / total_length) * f[1] for f in train_seq])
-        # std = math.sqrt(sum([(f[-1] / total_length) * f[2] for f in train_seq]))
-
-        train_seq_x = np.concatenate(train_seq_x)
-        train_seq_y = np.concatenate(train_seq_y)
-
-        test_seq_x = np.concatenate(test_seq_x)
-        test_seq_y = np.concatenate(test_seq_y)
-
-        # scaler = RobustScalerNp(mean=mean, quantile_75=quantile_75, quantile_25=quantile_25)
-        # train_seq[:, :, 1] = scaler.transform(train_seq[:, :, 1])
-        # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
-
-        # scaler = StandardScalerNp(mean=mean, std=std)
-        # train_seq[:, :, 1] = scaler.transform(train_seq[:, :, 1])
-        # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
-
-        scaler = LogScalerNp()
-        train_seq_y[:, :, 1] = scaler.transform(train_seq_y[:, :, 1])
-        test_seq_y[:, :, 1] = scaler.transform(test_seq_y[:, :, 1])
-
-        scaler = MinMaxScalerNp()
-        train_seq_y[:, :, 1] = scaler.fit_transform(train_seq_y[:, :, 1])
-        test_seq_y[:, :, 1] = scaler.transform(test_seq_y[:, :, 1])
-
         flows = {
             'shape': (self.seq_len, self.label_len, self.pred_len),
-            'train_x': train_seq_x,
-            'train_y': train_seq_y,
-            'test_x': test_seq_x,
-            'test_y': test_seq_y
+            'data_x': flow_seq_x,
+            'data_y': flow_seq_y,
         }
 
-        print(f"[+] Found {len(train_seq_x) + len(test_seq_x)} sequences")
+        print(f"[+] Found sequences: {sum([len(u[0]) for u in flow_seq_y])} in {len(flow_seq_x)} flows sequences")
         return flows
 
     @staticmethod
     def __create_sequences__(data_flows: list, seq_len: int, label_len: int, pred_len: int, step_size: int,
-                             max_mil_seq: int, aggregation_time: int, flow_id: int):
+                             max_mil_seq: int, aggregation_time: int, filter_size: int, flow_id: int):
         seq_x = []
         seq_y = []
 
         counter = 0
         for flow in data_flows:
-            flow = _list_milliseconds_(data_flow=flow, aggregation_time=aggregation_time)
-            flow = _split_flow_list(split_flow=flow, x=max_mil_seq, aggregation_time=aggregation_time)
+            flow_packets = _list_milliseconds_(data_flow=flow, aggregation_time=aggregation_time)
+            flow_aggregated = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=aggregation_time)
+            # flow = _split_flow_list(split_flow=flow, x=max_mil_seq, aggregation_time=aggregation_time)
+
+            if len(flow_packets) != len(flow_aggregated) or flow_packets[0][0] != flow_aggregated[0, 0] or flow_packets[-1][0] != flow_aggregated[-1, 0]:
+                raise IndexError("Both aggregation types should have the same result!")
+
+            only_sizes = flow_aggregated[:, 1]
+            without_zeros = only_sizes[np.nonzero(only_sizes)]
+            mean = np.mean(without_zeros)
+            var = np.var(without_zeros)
+            length = len(without_zeros)
 
             flow_seq_x = []
             flow_seq_y = []
 
-            for splitted_flow in flow:
-                for i in range(max(label_len, max_mil_seq), len(splitted_flow),
-                               step_size):  # at least label_len should be available - it might happen, that label_len is bigger then the sequence
-                    if i + pred_len > len(splitted_flow):  # not enough for prediction
-                        break
+            for i in range(max(label_len, max_mil_seq), len(flow_packets),
+                           step_size):  # at least label_len should be available - it might happen, that label_len is bigger then the sequence
+                if i + pred_len > len(flow_packets):  # not enough for prediction
+                    break
 
-                    potential_seq = splitted_flow[i - max_mil_seq: i]
-                    potential_pred = splitted_flow[i - label_len: i + pred_len]
+                # <<< x1|y1: (A <-> B) -> (A <-> B) >>>
+                x1 = flow_packets[i - max_mil_seq: i]
+                x1 = list(map(lambda z: z[1], x1))
+                x1 = list(itertools.chain(*x1))  # x = [len(x), 3] (time,size,direction,protocol)
 
-                    # <<< x1|y1: (A <-> B) -> (A <-> B) >>>
-                    x1 = list(map(lambda z: z[1], potential_seq))
-                    x1 = list(itertools.chain(*x1))  # x = [len(x), 3] (time,size,direction,protocol)
+                if len(x1) < seq_len:  # or sum(1 for element in x1 if element[1] != 0) < filter_size: not necessary
+                    continue
 
-                    if len(x1) < seq_len:
-                        continue
+                x1 = np.stack(x1[-seq_len:])
 
-                    x1 = np.stack(x1[-seq_len:])
+                # create [time, size] vector - filter for (A -> B) packets
+                y1 = flow_aggregated[i - label_len: i + pred_len]
 
-                    if sum(1 for element in x1 if element[1] != 0) < (seq_len / 4):
-                        continue
-
-                    # create [time, size] vector - filter for (A -> B) packets
-                    y1 = list(map(lambda z: [z[0], sum(map(lambda t: t[1], z[1]))], potential_pred))  # y = [len(y), 1]
-
-                    if sum(1 for element in y1[label_len:] if element[1] != 0) < (pred_len / 4):
-                        continue
-
-                    y1 = np.array(y1)
-
-                    flow_seq_x.append(x1)
-                    flow_seq_y.append(y1)
+                flow_seq_x.append(x1)
+                flow_seq_y.append(y1)
 
             if len(flow_seq_x) != 0:
-                seq_x.append(flow_seq_x)
-                seq_y.append(flow_seq_y)
+                seq_x.append((flow_seq_x, mean, var, length))
+                seq_y.append((flow_seq_y, mean, var, length))
 
             counter += 1
-            print(f"[+] Process: {flow_id} | Sequences: {sum(map(lambda x: len(x), seq_x))} | {counter} / {len(data_flows)}")
-
+            print(f"[+] Process: {flow_id} | Sequences: {len(flow_seq_x)} | Flow {counter} / {len(data_flows)} "
+                  f"| General: {sum([len(x[0]) for x in seq_x])}")
         return seq_x, seq_y
 
 
@@ -558,7 +447,7 @@ def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
     for j in aggr_time:
         for i in pred_lens:
             save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_even_2_336_48_{i}_{j}.pkl'
-            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i,
+            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, filter_size=40,
                                                    step_size=1, aggregation_time=j, processes=8)
 
             data_transformer.save_python_object(save_path)
@@ -572,8 +461,8 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
         for i in pred_lens:
             save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_single_2_336_48_{i}_{j}.pkl'
             data_transformer = DataTransformerSinglePacketsEven(load_path, max_flows=-1, seq_len=336, label_len=48,
-                                                                pred_len=i, max_mil_seq=500, step_size=1,
-                                                                aggregation_time=j, processes=8)
+                                                                pred_len=i, max_mil_seq=100, step_size=1,
+                                                                aggregation_time=j, filter_size=4, processes=8)
 
             data_transformer.save_python_object(save_path)
             print(f"[x] Finished {i} and saved it in {save_path}")
@@ -583,7 +472,7 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'  # _test
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 

@@ -69,7 +69,7 @@ params:
   data: Traffic_Single
 
 list:
-  data_path: [univ1_pt1_single_336_48_12_1000.pkl, univ1_pt1_single_336_48_18_1000.pkl, univ1_pt1_single_336_48_24_1000.pkl, univ1_pt1_single_336_48_30_1000.pkl,]
+  data_path: [univ1_pt1_single_2_336_48_12_1000.pkl, univ1_pt1_single_2_336_48_18_1000.pkl, univ1_pt1_single_2_336_48_24_1000.pkl, univ1_pt1_single_2_336_48_30_1000.pkl,]
   pred_len: [12, 18, 24, 30]
 
 #####################################################################################################################
@@ -106,7 +106,7 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: Non-Stationary-Transformer-Traffic-Single-v8
+    project: Non-Stationary-Transformer-Traffic-Single-v10
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

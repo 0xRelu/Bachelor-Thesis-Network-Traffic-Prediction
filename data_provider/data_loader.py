@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
-from utils.scaler import StandardScalerNp, MinMaxScalerNp
+from utils.scaler import StandardScalerNp, MinMaxScalerNp, LogScalerNp
 # from data_provider.data_preparer import DataTransformerSinglePacketsEven, DatatransformerEven
 from utils.timefeatures import time_features
 import warnings
@@ -59,6 +59,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
 
         self.random_seed = random_seed
         self.use_minmax_scaler = use_minmax_scaler
+        self.scaler = None
 
         self.__read_data__()
 
@@ -79,38 +80,55 @@ class Dataset_Traffic_Singe_Packets(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        train_x = data['train_x']
-        train_y = data['train_y']
-        val_test_x = data['test_x']
-        val_test_y = data['test_y']
+        flow_seq_x = data['data_x']
+        flow_seq_y = data['data_y']
 
-        val_x, test_x = val_test_x[:int(0.5 * len(val_test_x))], val_test_x[int(0.5 * len(val_test_x)):]
-        val_y, test_y = val_test_y[:int(0.5 * len(val_test_y))], val_test_y[int(0.5 * len(val_test_y)):]
+        # split in test and train
+        seq_count = sum(map(lambda x: len(x[0]), flow_seq_x))  # len(x) == len(y)
+        flow_seq_x = sorted(flow_seq_x, key=lambda x: len(x[0]), reverse=True)
+        flow_seq_y = sorted(flow_seq_y, key=lambda x: len(x[0]), reverse=True)
 
-        # # randomize
-        # random.seed(self.random_seed)
-        # random.shuffle(seq_x)
-        #
-        # random.seed(self.random_seed)
-        # random.shuffle(seq_y)
-        #
-        # # split flows and normalize
-        # sizes = [0.7, 0.85]
-        #
-        # [train_x, val_x, test_x] = split_list_percentage(seq_x, sizes)
-        # train_x, val_x, test_x = np.stack(train_x), np.stack(val_x), np.stack(test_x)
-        #
-        # [train_y, val_y, test_y] = split_list_percentage(seq_y,  sizes)
-        # train_y, val_y, test_y = np.stack(train_y), np.stack(val_y), np.stack(test_y)
-        #
-        # # scale bytes (not time)
-        # scaler = MinMaxScalerNp() if self.use_minmax_scaler else StandardScalerNp()
-        # train_y[:, :, 1] = scaler.fit_transform(train_y[:, :, 1])
-        # test_y[:, :, 1] = scaler.transform(test_y[:, :, 1])
-        # val_y[:, :, 1] = scaler.transform(val_y[:, :, 1])
+        train_size = 0.6 * seq_count
+        train_seq_x = []
+        train_seq_y = []
 
-        self.seq_x = [train_x, val_x, test_x][self.set_type]
-        self.seq_y = [train_y, val_y, test_y][self.set_type]
+        test_seq_x = []
+        test_seq_y = []
+
+        for i in range(len(flow_seq_x)):
+            if sum(map(lambda x: len(x[0]), train_seq_x)) > train_size:
+                test_seq_x = flow_seq_x[i:]
+                test_seq_y = flow_seq_y[i:]
+                break
+
+            train_seq_x.append(flow_seq_x[i])
+            train_seq_y.append(flow_seq_y[i])
+
+        # normalize
+        total_length = sum(map(lambda x: x[-1], train_seq_x))  # != seq_count
+        mean = sum([(f[-1] / total_length) * f[1] for f in train_seq_x])
+        std = math.sqrt(sum([(f[-1] / total_length) * f[2] for f in train_seq_x]))
+
+        train_seq_x = np.concatenate(list(map(lambda x: x[0], train_seq_x)))
+        train_seq_y = np.concatenate(list(map(lambda x: x[0], train_seq_y)))
+
+        test_seq_x = np.concatenate(list(map(lambda x: x[0], test_seq_x)))
+        test_seq_y = np.concatenate(list(map(lambda x: x[0], test_seq_y)))
+
+        self.scaler = StandardScalerNp(mean=mean, std=std)
+        train_seq_y[:, :, 1] = self.scaler.transform(train_seq_y[:, :, 1])
+        test_seq_y[:, :, 1] = self.scaler.transform(test_seq_y[:, :, 1])
+
+
+        # scaler = MinMaxScalerNp()
+        # train_seq_y[:, :, 1] = scaler.fit_transform(train_seq_y[:, :, 1])
+        # test_seq_y[:, :, 1] = scaler.transform(test_seq_y[:, :, 1])
+
+        val_x, test_x = test_seq_x[:int(0.5 * len(test_seq_x))], test_seq_x[int(0.5 * len(test_seq_x)):]
+        val_y, test_y = test_seq_y[:int(0.5 * len(test_seq_y))], test_seq_y[int(0.5 * len(test_seq_y)):]
+
+        self.seq_x = [train_seq_x, val_x, test_x][self.set_type]
+        self.seq_y = [train_seq_y, val_y, test_y][self.set_type]
 
 
     def __getitem__(self, index):
@@ -126,6 +144,9 @@ class Dataset_Traffic_Singe_Packets(Dataset):
 
     def __len__(self):
         return len(self.seq_x)  # len(self.seq_x)
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
 
 
 class Dataset_Traffic_Even(Dataset):
@@ -145,6 +166,7 @@ class Dataset_Traffic_Even(Dataset):
 
         self.random_seed = random_seed
         self.use_minmax_scaler = use_minmax_scaler
+        self.scaler = None
 
         self.__read_data__()
 
@@ -165,23 +187,50 @@ class Dataset_Traffic_Even(Dataset):
             print(f"[+] Shape of saved data {data['shape']} matches current "
                   f"configuration ({self.seq_len}, {self.label_len}, {self.pred_len}). Will use saved data...")
 
-        train, val_test = data['train'], data['test']
-        val, test = val_test[:int(0.5 * len(val_test))], val_test[int(0.5 * len(val_test)):]
+        # train, val_test = data['train'], data['test']
 
-        # randomize
-        # random.seed(self.random_seed)
-        # random.shuffle(data)
+        flow_seq = data['data']
 
-        # split flows and normalize
-        # scaler = MinMaxScalerNp() if self.use_minmax_scaler else StandardScalerNp()
-        # [train, val, test] = split_list_percentage(data, [0.7, 0.85])
-        # train, val, test = np.stack(train), np.stack(val), np.stack(test)
-        #
-        # train[:, :, 1] = scaler.fit_transform(train[:, :, 1])
-        # print(f"Mean: {scaler.mean} | Std: {scaler.std}")
-        # test[:, :, 1] = scaler.transform(test[:, :, 1])
-        # val[:, :, 1] = scaler.transform(val[:, :, 1])
+        # split in test and train
+        seq_count = sum(map(lambda x: len(x[0]), flow_seq))
 
+        random.seed(self.random_seed)
+        random.shuffle(flow_seq)
+        # flow_seq = sorted(flow_seq, key=lambda x: len(x[0]), reverse=True)
+
+        train_size = 0.6 * seq_count
+        train_seq = []
+        test_seq = []
+
+        for i in range(len(flow_seq)):
+            if sum(map(lambda x: len(x[0]), train_seq)) > train_size:
+                test_seq = flow_seq[i:]
+                break
+
+            train_seq.append(flow_seq[i])
+
+        # normalize
+        total_length = sum(map(lambda x: x[-1], train_seq))  # != seq_count
+        mean = sum([(f[-1] / total_length) * f[1] for f in train_seq])
+        std = math.sqrt(sum([(f[-1] / total_length) * f[2] for f in train_seq]))
+
+        train_seq = np.concatenate(list(map(lambda x: x[0], train_seq)))
+        test_seq = np.concatenate(list(map(lambda x: x[0], test_seq)))
+
+        # we don't need to fit because we calc mean from flow to make it independent of pred_len
+        self.scaler = StandardScalerNp(mean=mean, std=std)
+        train_seq[:, :, 1] = self.scaler.transform(train_seq[:, :, 1])
+        test_seq[:, :, 1] = self.scaler.transform(test_seq[:, :, 1])
+
+        # scaler = LogScalerNp()
+        # train_seq[:, :, 1] = scaler.transform(train_seq[:, :, 1])
+        # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
+
+        # scaler = MinMaxScalerNp()
+        # train_seq[:, :, 1] = scaler.fit_transform(train_seq[:, :, 1])
+        # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
+
+        train, val, test = train_seq, test_seq[:int(0.5 * len(test_seq))], test_seq[int(0.5 * len(test_seq)):]
         self.seq = [train, val, test][self.set_type]
 
     def __getitem__(self, index):
@@ -197,6 +246,9 @@ class Dataset_Traffic_Even(Dataset):
 
     def __len__(self):
         return len(self.seq)
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
 
 
 class Dataset_ETT_hour(Dataset):
