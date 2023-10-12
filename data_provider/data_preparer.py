@@ -447,7 +447,7 @@ def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
     for j in aggr_time:
         for i in pred_lens:
             save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_even_2_336_48_{i}_{j}.pkl'
-            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, filter_size=40,
+            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, filter_size=100,
                                                    step_size=1, aggregation_time=j, processes=8)
 
             data_transformer.save_python_object(save_path)
@@ -480,7 +480,7 @@ if __name__ == "__main__":
     # __create_split_flow_files__() # only if packets got changed
 
     __save_even__(preds, path, aggregation_time)
-    __save_single__(preds, path, aggregation_time)
+    # __save_single__(preds, path, aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
     sys.exit(0)
