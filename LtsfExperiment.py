@@ -46,9 +46,9 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
 
         # log results as diagrams
         if n + 1 == cw_config['iterations']:
-            # self.__log_trues_preds__(cw_config, trues_preds_train, "train")
-            # self.__log_trues_preds__(cw_config, trues_preds_test, "test")
-            # self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
+            self.__log_trues_preds__(cw_config, trues_preds_train, "train")
+            self.__log_trues_preds__(cw_config, trues_preds_test, "test")
+            self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
 
             test_results_not_scaled, _ = self.expMain.test(test_data=self.test_data, test_loader=self.test_loader, inverse_scale=True)
             results.update(test_results_not_scaled)
@@ -56,20 +56,26 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
 
         return results
 
-    def __log_trues_preds__(self, cw_config, trues_preds: list, title: str):
+    def __log_trues_preds__(self, cw_config, trues_preds: list, title: str, sort: bool = False):
         cw_logging.getLogger().info(f"Saving results {title} as plots in wandb...")
         xs = [i for i in range(cw_config['params']['seq_len'] + 1,
                                cw_config['params']['seq_len'] + 1 + cw_config['params']['pred_len'])]
         y, y_pred = np.concatenate([elem[0] for elem in trues_preds]), np.concatenate([elem[1] for elem in trues_preds])
-        entry_mse = []
 
-        for i in range(len(y)):
-            entry_mse.append((i, MSE(y_pred[i], y[i])))
+        if sort:
+            entry_mse = []
 
-        entry_mse = sorted(entry_mse, key=lambda x: x[1])
-        entry_mse = entry_mse[:64] + entry_mse[-64:]  # get best and worst predictions
-        entries = list(map(lambda x: x[0], entry_mse))
-        y, y_pred = y[entries], y_pred[entries]
+            for i in range(len(y)):
+                entry_mse.append((i, MSE(y_pred[i], y[i])))
+
+            entry_mse = sorted(entry_mse, key=lambda x: x[1])
+            entry_mse = entry_mse[:64] + entry_mse[-64:]  # get best and worst predictions
+            entries = list(map(lambda x: x[0], entry_mse))
+            y, y_pred = y[entries], y_pred[entries]
+        else:
+            seed = 1012
+            np.random.seed(seed)
+            y, y_pred = np.random.shuffle(y)[:64], np.random.shuffle(y_pred)[-64:]
 
         for i in range(len(y)):
             y_p, y_pred_p = y[i, :, 0].tolist(), y_pred[i, :, 0].tolist()

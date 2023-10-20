@@ -7,6 +7,7 @@ import multiprocessing
 import os
 import pickle
 import sys
+import statsmodels.api as sm
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -204,6 +205,53 @@ def _split_flow_list(split_flow: list, x: int, aggregation_time: int):
         splits.append(before + current_split + after)
 
     return splits
+
+
+def calculate_hurst_exponent(data: np.ndarray):
+    if len(data) < 10:
+        return -1, -1, [[], []]
+
+    segment_sizes = list(map(lambda x: int(10 ** x), np.arange(math.log10(10), math.log10(len(data)), 0.25))) + [len(data)]
+
+    RS = []
+
+    def _calc_rs(chunk):
+        R = np.ptp(chunk)
+        S = np.std(chunk)
+
+        if R == 0 or S == 0:
+            return 0
+
+        return R/S
+
+    for segment_size in segment_sizes:
+        chunked_data = [data[i:i + segment_size] for i in range(0, len(data), segment_size)]
+        w_rs = np.mean([_calc_rs(chunk) for chunk in chunked_data])
+        RS.append(w_rs)
+
+    A = np.vstack([np.log10(segment_sizes), np.ones(len(RS))]).T
+    H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
+
+    return H, c, [segment_sizes, RS]
+
+
+def calculate_autocorrelation(data: np.ndarray):
+    segment_sizes = range(0, len(data), len(data) // 4)
+    autocorrelation = []
+
+    for lag in segment_sizes:
+        data_shifted = np.roll(data, lag)
+
+        centered_x = data - np.sum(data, axis=0, keepdims=True) / len(data)
+        centered_y = data_shifted - np.sum(data_shifted, axis=0, keepdims=True) / len(data_shifted)
+        cov_xy = 1. / (len(data) - 1) * np.dot(centered_x.T, centered_y)
+        var_x = 1. / (len(data) - 1) * np.sum(centered_x ** 2, axis=0)
+        var_y = 1. / (len(data_shifted) - 1) * np.sum(centered_y ** 2, axis=0)
+        corrcoef_xy = cov_xy / np.sqrt(var_x[:, None] * var_y[None, :])
+
+        autocorrelation.append(corrcoef_xy)
+
+    return [segment_sizes, autocorrelation]
 
 
 class DataTransformerBase:
@@ -419,17 +467,81 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         return seq_x, seq_y
 
 
-def visualize_flows(file_path: str):
+def _analyse_flows(file_path: str, save_path: str):
+    if os.path.exists(save_path):
+        try:
+            with open(save_path, 'rb') as f:
+                data = pickle.load(f)
+
+            print(data)
+            return
+        except Exception:
+            print("Could not pickle load data")
+            return
+
     with open(file_path, 'rb') as f:
         data = pickle.load(f)
 
+    # --- flow general data
+
+    # flow count
+    f_count = len(data)
+    print(f"Flow count: {f_count}")
+
+    # packet count per flow
+    p_count = [len(x) for x in data]
+    print(f"Packets per flow: {p_count}")
+
+    # bytes per flow
+    b_count = []
     for flow in data:
-        parsed_flow = _list_milliseconds_only_sizes_(flow, 1000)
+        b_count.append(sum([x[1] for x in flow]))
+    print(f"Bytes per flow: {b_count}")
 
-        zeros = np.count_nonzero(parsed_flow[:, 1])
-        values = len(parsed_flow)
+    # --- flow aggregated data
+    agg_len = []
+    v_not_zero = []
+    corr = []
+    hurst = []
 
-        print(f"{zeros} / {values}")
+    for flow in data:
+        flow_ag = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=1000)
+
+        # aggregated len per flow
+        agg_len.append(len(flow_ag))
+
+        # Non zero values per flow
+        v_not_zero.append((len(np.nonzero(flow_ag[:, 1])[0]), len(np.nonzero(flow_ag[:, 1])[0]) / len(flow_ag[:, 1])))
+
+        # Autocorrelation
+        # [window_sizes_corr, corr_f] = calculate_autocorrelation(flow_ag[:, 1])
+        # corr_f = sm.tsa.acf(flow_ag[:, 1], nlags=5)
+        # corr.append(corr_f)
+
+        # Hurst Exponent
+        H, c, [window_sizes_h, RS] = calculate_hurst_exponent(flow_ag[:, 1])
+        hurst.append(H)
+
+        if len(v_not_zero) % 100 == 0:
+            print(f"[+] Finished {len(v_not_zero)} / {len(data)} : {len(v_not_zero) / len(data)}")
+
+    print(f"Non zero values per flow: {v_not_zero}")
+    # print(f"Correlation per flow: {corr}")
+    print(f"Hurst per flow: {hurst}")
+
+    data = {
+        "f_count": f_count,
+        "p_count": p_count,
+        "b_count": b_count,
+        "agg_len": agg_len,
+        "v_not_zero": v_not_zero,
+        "hurst": hurst
+    }
+
+    with open(save_path, 'wb') as f:
+        pickle.dump(data, f)
+
+    return data
 
 
 def __create_split_flow_files__():
@@ -442,11 +554,10 @@ def __create_split_flow_files__():
     parse_pcap_to_list(path, save_path)
     parse_pcap_to_list(path_test, save_path_test)
 
-
 def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
     for j in aggr_time:
         for i in pred_lens:
-            save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_even_2_336_48_{i}_{j}.pkl'
+            save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_p\\univ1_pt1_even_336_48_{i}_{j}.pkl'
             data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, filter_size=100,
                                                    step_size=1, aggregation_time=j, processes=8)
 
@@ -459,7 +570,7 @@ def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
 def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
     for j in aggr_time:
         for i in pred_lens:
-            save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_single_2_336_48_{i}_{j}.pkl'
+            save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_p\\univ1_pt1_single_336_48_{i}_{j}.pkl'
             data_transformer = DataTransformerSinglePacketsEven(load_path, max_flows=-1, seq_len=336, label_len=48,
                                                                 pred_len=i, max_mil_seq=100, step_size=1,
                                                                 aggregation_time=j, filter_size=4, processes=8)
@@ -473,14 +584,14 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
+    save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_v1.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
-    # visualize_flows(path)
+    # _analyse_flows(path, save_analysis)
     # __create_split_flow_files__() # only if packets got changed
 
     __save_even__(preds, path, aggregation_time)
-    # __save_single__(preds, path, aggregation_time)
+    __save_single__(preds, path, aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
-    sys.exit(0)

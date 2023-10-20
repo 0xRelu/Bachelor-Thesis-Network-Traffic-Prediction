@@ -35,7 +35,7 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1 #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_p #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: OT # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
@@ -69,7 +69,7 @@ params:
   data: Traffic_Even
 
 list:
-  data_path: [univ1_pt1_even_2_336_48_12_1000.pkl, univ1_pt1_even_2_336_48_18_1000.pkl, univ1_pt1_even_2_336_48_24_1000.pkl, univ1_pt1_even_2_336_48_30_1000.pkl]
+  data_path: [univ1_pt1_even_336_48_12_1000.pkl, univ1_pt1_even_336_48_18_1000.pkl, univ1_pt1_even_336_48_24_1000.pkl, univ1_pt1_even_336_48_30_1000.pkl]
   pred_len: [12, 18, 24, 30]
 
 
@@ -107,7 +107,7 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: Non-Stationary-Transformer-Traffic-Even-v10
+    project: Non-Stationary-Transformer-Traffic-Even-v12
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
