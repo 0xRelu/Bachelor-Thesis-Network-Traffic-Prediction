@@ -1,5 +1,6 @@
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -13,11 +14,11 @@ if __name__ == "__main__":
         'data': 'Traffic_Even',
         'batch_size': 128,
         'freq': "h",
-        'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1",
-        'data_path': "univ1_pt1_even_2_336_48_30_1000.pkl",
+        'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_p",
+        'data_path': "univ1_pt1_even_336_48_12_1000.pkl",
         'seq_len': 336,
         'label_len': 48,
-        'pred_len': 30,
+        'pred_len': 12,
         'features': "M",
         'target': "M",
         'num_workers': 1,
@@ -39,18 +40,19 @@ if __name__ == "__main__":
 
     max_x = 0
     max_y = 0
+    counter = 0
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        if i % 100 == 0:
-            print(f"\tTrain {i / len(train_loader)} ")
+        p_x = batch_x[0, :, 0].numpy()
+        p_y = batch_y[0, :, 0].numpy()
 
-        nmax = torch.max(batch_x)
-        if nmax > max_x:
-            max_x = nmax
+        plt.plot(list(range(p_x.shape[0])), p_x)
+        plt.plot(list(range(p_y.shape[0])), p_y)
+        plt.show()
 
-        nmax = torch.max(batch_y)
-        if nmax > max_y:
-            max_y = nmax
+        counter += 1
+        if counter > 10:
+            sys.exit(0)
 
     print(f"{max_x} | {max_y}")
 

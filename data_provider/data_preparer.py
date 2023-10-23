@@ -88,15 +88,31 @@ def split_list(input_list, num_parts):
     return out
 
 
-def parse_pcap_to_list(file_path: str, save_path: str):
-    print(f"[+] Loading packets from pcap file with location: {file_path} ...")
-    packetList = rdpcap(file_path)
-    packetList = _split_flows_(packetList, -1)
+def parse_pcap_to_list(paths: list, save_path: str):
+    print(f"[+] Loading packets from pcap file with location: {paths} ...")
 
-    with open(save_path, 'wb') as f:
-        pickle.dump(packetList, f)
+    counter = 0
 
-    print(f"[+] Wrote {len(packetList)} flows successfully in file with path {save_path}")
+    for i in range(len(paths)):
+        packetList = rdpcap(paths[i])
+        ndata_flows = _split_flows_(packetList, -1)
+        counter += len(ndata_flows)
+        packetList = None
+
+        if i > 0:
+            with open(save_path, 'rb') as f:
+                data_flows = pickle.load(f)
+            data_flows.extend(ndata_flows)
+        else:
+            data_flows = ndata_flows
+
+        with open(save_path, 'wb') as f:
+            pickle.dump(data_flows, f)
+
+        data_flows = None
+        print(f"[x] Finished {paths[i]}. Found {counter} flows total. Start loading next...")
+
+    print(f"[+] Wrote {counter} flows successfully in file with path {save_path}")
 
 
 def _list_milliseconds_(data_flow: np.ndarray, aggregation_time: int = 1000) -> list:
@@ -284,8 +300,8 @@ class DataTransformerBase:
 
 
 class DatatransformerEven(DataTransformerBase):
-    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, filter_size:int = 4, step_size=1,
-                 aggregation_time=1000, processes=4):
+    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, filter_size: int = 4,
+                 step_size=1, aggregation_time: int = 1000, processes=4):
         self.max_flows = max_flows
         self.seq_len = seq_len
         self.aggregation_time = aggregation_time
@@ -545,21 +561,22 @@ def _analyse_flows(file_path: str, save_path: str):
 
 
 def __create_split_flow_files__():
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1'  # _test
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt'  # _test
+    path = [path + str(i) for i in range(1, 21)]
     path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test'  #
 
-    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'
     save_path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'
 
     parse_pcap_to_list(path, save_path)
-    parse_pcap_to_list(path_test, save_path_test)
+    # parse_pcap_to_list(path_test, save_path_test)
 
 def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
     for j in aggr_time:
         for i in pred_lens:
             save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_p\\univ1_pt1_even_336_48_{i}_{j}.pkl'
             data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, filter_size=100,
-                                                   step_size=1, aggregation_time=j, processes=8)
+                                                   step_size=10, aggregation_time=j, processes=10)
 
             data_transformer.save_python_object(save_path)
             print(f"[x] Finished {i} and saved it in {save_path}")
@@ -573,7 +590,7 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
             save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_p\\univ1_pt1_single_336_48_{i}_{j}.pkl'
             data_transformer = DataTransformerSinglePacketsEven(load_path, max_flows=-1, seq_len=336, label_len=48,
                                                                 pred_len=i, max_mil_seq=100, step_size=1,
-                                                                aggregation_time=j, filter_size=4, processes=8)
+                                                                aggregation_time=j, filter_size=4, processes=10)
 
             data_transformer.save_python_object(save_path)
             print(f"[x] Finished {i} and saved it in {save_path}")
@@ -583,15 +600,15 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'  # _test
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_v1.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     # _analyse_flows(path, save_analysis)
-    # __create_split_flow_files__() # only if packets got changed
+    # __create_split_flow_files__()  # only if packets got changed
 
     __save_even__(preds, path, aggregation_time)
-    __save_single__(preds, path, aggregation_time)
+    # __save_single__(preds, path, aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

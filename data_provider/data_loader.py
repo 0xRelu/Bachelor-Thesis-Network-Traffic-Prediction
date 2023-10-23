@@ -230,6 +230,17 @@ class Dataset_Traffic_Even(Dataset):
         # train_seq[:, :, 1] = scaler.fit_transform(train_seq[:, :, 1])
         # test_seq[:, :, 1] = scaler.transform(test_seq[:, :, 1])
 
+        # Fast fourier transformation
+        # for i in range(train_seq.shape[0]):
+        #     train_seq[i, :, 1] = np.fft.fft(train_seq[i, :, 1])
+        #
+        # for i in range(test_seq.shape[0]):
+        #     test_seq[i, :, 1] = np.fft.fft(test_seq[i, :, 1])
+        #
+        # self.scaler = StandardScalerNp()
+        # train_seq[:, :, 1] = self.scaler.fit_transform(train_seq[:, :, 1])
+        # test_seq[:, :, 1] = self.scaler.transform(test_seq[:, :, 1])
+
         train, val, test = train_seq, test_seq[:int(0.5 * len(test_seq))], test_seq[int(0.5 * len(test_seq)):]
         self.seq = [train, val, test][self.set_type]
 
@@ -248,7 +259,12 @@ class Dataset_Traffic_Even(Dataset):
         return len(self.seq)
 
     def inverse_transform(self, data):
-        return self.scaler.inverse_transform(data)
+        rdata = self.scaler.inverse_transform(data)
+        # reverse FFT
+        #for i in range(rdata.shape[0]):
+        #    rdata[i, :, 0] = np.fft.fft(rdata[i, :, 0])  # no time feature
+
+        return rdata
 
 
 class Dataset_ETT_hour(Dataset):
