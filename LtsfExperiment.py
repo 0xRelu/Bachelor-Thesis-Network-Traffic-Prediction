@@ -41,7 +41,8 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         test_loss, trues_preds_test = self.expMain.vali(vali_data=self.test_data, vali_loader=self.test_loader,
                                                         criterion=self.criterion)  # test
 
-        cw_logging.getLogger().info(f"epoch: {n} | train loss: {train_loss} | vali loss: {vali_loss} | test loss: {test_loss}")
+        cw_logging.getLogger().info(
+            f"epoch: {n} | train loss: {train_loss} | vali loss: {vali_loss} | test loss: {test_loss}")
         results = {"test_loss": test_loss, "vali_loss": vali_loss, "train_loss": train_loss, 'iter': n}
 
         # log results as diagrams
@@ -50,7 +51,11 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
             self.__log_trues_preds__(cw_config, trues_preds_test, "test")
             self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
 
-            test_results_not_scaled, _ = self.expMain.test(test_data=self.test_data, test_loader=self.test_loader, inverse_scale=True)
+            test_results_not_scaled, trues_preds_test_real = self.expMain.test(test_data=self.test_data,
+                                                                               test_loader=self.test_loader,
+                                                                               inverse_scale=True)
+            self.__log_trues_preds__(cw_config, trues_preds_test_real, "test_real")
+
             results.update(test_results_not_scaled)
             print(results)
 
@@ -60,7 +65,8 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         cw_logging.getLogger().info(f"Saving results {title} as plots in wandb...")
         xs = [i for i in range(cw_config['params']['seq_len'] + 1,
                                cw_config['params']['seq_len'] + 1 + cw_config['params']['pred_len'])]
-        y, y_pred = np.concatenate([elem[0] for elem in trues_preds]), np.concatenate([elem[1] for elem in trues_preds])
+        f = np.concatenate if len(trues_preds[0][0].shape) == 3 else np.stack
+        y, y_pred = f([elem[0] for elem in trues_preds]), f([elem[1] for elem in trues_preds])
 
         if sort:
             entry_mse = []
@@ -75,15 +81,16 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         else:
             seed = 1012
             np.random.seed(seed)
-            y, y_pred = np.random.shuffle(y)[:64], np.random.shuffle(y_pred)[-64:]
+            perm = np.random.permutation(y.shape[0])
+            y, y_pred = y[perm][:64], y_pred[perm][-64:]
 
         for i in range(len(y)):
             y_p, y_pred_p = y[i, :, 0].tolist(), y_pred[i, :, 0].tolist()
-            gb = 'good' if i < (1/2 * len(y)) else 'bad'
+            gb = 'good' if i < (1 / 2 * len(y)) else 'bad'
             wandb.log({f"{title}_ground_truth_prediction_{i}_{gb}": wandb.plot.line_series(xs=xs, ys=[y_p, y_pred_p],
-                                                                                      keys=['Ground Truth',
-                                                                                            'Prediction'],
-                                                                                      title=f"{title} {gb} mse:{entry_mse[i][1]}")})
+                                                                                           keys=['Ground Truth',
+                                                                                                 'Prediction'],
+                                                                                           title=f"{title} {gb}")})
 
         cw_logging.getLogger().info(f"Finished saving diagrams {title} in wandb!")
 
