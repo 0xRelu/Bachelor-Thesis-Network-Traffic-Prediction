@@ -10,7 +10,7 @@ job-name: Non-Stationary-Transformer-Job-Traffic-Even    # this will be the expe
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 860  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 1000  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 4000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -107,7 +107,7 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: Non-Stationary-Transformer-Traffic-Even-v13
+    project: Non-Stationary-Transformer-Traffic-Even-v14
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

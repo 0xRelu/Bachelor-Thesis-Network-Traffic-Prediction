@@ -124,8 +124,8 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         # train_seq_y[:, :, 1] = scaler.fit_transform(train_seq_y[:, :, 1])
         # test_seq_y[:, :, 1] = scaler.transform(test_seq_y[:, :, 1])
 
-        val_x, test_x = test_seq_x
-        val_y, test_y = test_seq_y
+        val_x, test_x = test_seq_x, test_seq_x
+        val_y, test_y = test_seq_y, test_seq_y
 
         self.seq_x = [train_seq_x, val_x, test_x][self.set_type]
         self.seq_y = [train_seq_y, val_y, test_y][self.set_type]

@@ -84,7 +84,7 @@ params:
   individual: False
 
 wandb:
-    project: DLinear-Traffic-Even-v13
+    project: DLinear-Traffic-Even-v14
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
