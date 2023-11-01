@@ -25,7 +25,7 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
         self.expMain = Exp_Main(self.config)
 
         self.train_data, self.train_loader = self._get_data(flag='train')
-        self.vali_data, self.vali_loader = self._get_data(flag='val')
+        # self.vali_data, self.vali_loader = self._get_data(flag='val')
         self.test_data, self.test_loader = self._get_data(flag='test')
 
         self.criterion = self._select_criterion()
@@ -36,20 +36,20 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
                                                            train_loader=self.train_loader,
                                                            criterion=self.criterion,
                                                            model_optim=self.model_optim)  # train step
-        vali_loss, trues_preds_vali = self.expMain.vali(vali_data=self.vali_data, vali_loader=self.vali_loader,
-                                                        criterion=self.criterion)  # vali
+        # vali_loss, trues_preds_vali = self.expMain.vali(vali_data=self.vali_data, vali_loader=self.vali_loader,
+        #                                                 criterion=self.criterion)  # vali
         test_loss, trues_preds_test = self.expMain.vali(vali_data=self.test_data, vali_loader=self.test_loader,
                                                         criterion=self.criterion)  # test
 
         cw_logging.getLogger().info(
-            f"epoch: {n} | train loss: {train_loss} | vali loss: {vali_loss} | test loss: {test_loss}")
-        results = {"test_loss": test_loss, "vali_loss": vali_loss, "train_loss": train_loss, 'iter': n}
+            f"epoch: {n} | train loss: {train_loss} | test loss: {test_loss}")
+        results = {"test_loss": test_loss, "train_loss": train_loss, 'iter': n}
 
         # log results as diagrams
         if n + 1 == cw_config['iterations']:
             self.__log_trues_preds__(cw_config, trues_preds_train, "train")
             self.__log_trues_preds__(cw_config, trues_preds_test, "test")
-            self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
+            # self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
 
             test_results_not_scaled, trues_preds_test_real = self.expMain.test(test_data=self.test_data,
                                                                                test_loader=self.test_loader,

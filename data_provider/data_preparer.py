@@ -601,14 +601,14 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'  # _test
-    save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_v1.pkl'  # _test
+    save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full_v1.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
-    # _analyse_flows(path, save_analysis)
+    _analyse_flows(path, save_analysis)
     # __create_split_flow_files__()  # only if packets got changed
 
-    __save_even__(preds, path, aggregation_time)
+    # __save_even__(preds, path, aggregation_time)
     # __save_single__(preds, path, aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

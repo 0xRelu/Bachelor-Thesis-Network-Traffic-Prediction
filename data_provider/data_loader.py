@@ -88,7 +88,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         flow_seq_x = sorted(flow_seq_x, key=lambda x: len(x[0]), reverse=True)
         flow_seq_y = sorted(flow_seq_y, key=lambda x: len(x[0]), reverse=True)
 
-        train_size = 0.6 * seq_count
+        train_size = 0.8 * seq_count
         train_seq_x = []
         train_seq_y = []
 
@@ -124,8 +124,8 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         # train_seq_y[:, :, 1] = scaler.fit_transform(train_seq_y[:, :, 1])
         # test_seq_y[:, :, 1] = scaler.transform(test_seq_y[:, :, 1])
 
-        val_x, test_x = test_seq_x[:int(0.5 * len(test_seq_x))], test_seq_x[int(0.5 * len(test_seq_x)):]
-        val_y, test_y = test_seq_y[:int(0.5 * len(test_seq_y))], test_seq_y[int(0.5 * len(test_seq_y)):]
+        val_x, test_x = test_seq_x
+        val_y, test_y = test_seq_y
 
         self.seq_x = [train_seq_x, val_x, test_x][self.set_type]
         self.seq_y = [train_seq_y, val_y, test_y][self.set_type]
@@ -198,7 +198,7 @@ class Dataset_Traffic_Even(Dataset):
         random.shuffle(flow_seq)
         # flow_seq = sorted(flow_seq, key=lambda x: len(x[0]), reverse=True)
 
-        train_size = 0.6 * seq_count
+        train_size = 0.8 * seq_count
         train_seq = []
         test_seq = []
 
@@ -241,7 +241,7 @@ class Dataset_Traffic_Even(Dataset):
         # train_seq[:, :, 1] = self.scaler.fit_transform(train_seq[:, :, 1])
         # test_seq[:, :, 1] = self.scaler.transform(test_seq[:, :, 1])
 
-        train, val, test = train_seq, test_seq[:int(0.5 * len(test_seq))], test_seq[int(0.5 * len(test_seq)):]
+        train, val, test = train_seq, test_seq, test_seq
         self.seq = [train, val, test][self.set_type]
 
     def __getitem__(self, index):
