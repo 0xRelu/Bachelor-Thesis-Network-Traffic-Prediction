@@ -10,7 +10,7 @@ job-name: Informer-Job-Traffic-Even    # this will be the experiment's name in s
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 860  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 1200  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 4000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -41,7 +41,8 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
   random_seed: 12
-  use_minmax_scaler: True
+  fourier_transform: False
+  smooth: False
 
   # Forecasting task
   seq_len: 336 # input sequence length

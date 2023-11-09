@@ -99,6 +99,7 @@ class TimeFeatureEmbeddingMicroseconds(nn.Module):
         second_size = 60
         minute_size = 60
         hour_size = 24
+        weekday_size = 7
         day_size = 32
         month_size = 13
 
@@ -109,6 +110,7 @@ class TimeFeatureEmbeddingMicroseconds(nn.Module):
         self.second_embed = Embed(second_size, d_model)
         self.minute_embed = Embed(minute_size, d_model)
         self.hour_embed = Embed(hour_size, d_model)
+        self.weekday_embed = Embed(weekday_size, d_model)
         self.day_embed = Embed(day_size, d_model)
         self.month_embed = Embed(month_size, d_model)
 
@@ -120,8 +122,9 @@ class TimeFeatureEmbeddingMicroseconds(nn.Module):
         second_x = self.second_embed(x[:, :, 5])
         minute_x = self.minute_embed(x[:, :, 4])
         hour_x = self.hour_embed(x[:, :, 3])
-        day_x = self.day_embed(x[:, :, 2])
-        month_x = self.month_embed(x[:, :, 1])
+        weekday_x = self.weekday_embed(x[:, :, 2])
+        day_x = self.day_embed(x[:, :, 1])
+        month_x = self.month_embed(x[:, :, 0])
 
         return hour_x + minute_x + second_x + millisecond_x + microsecond_x  # month_x + day_x
 

@@ -97,66 +97,8 @@ def parse_unix_time(vector: np.ndarray) -> np.ndarray:
     return datetime_components
 
 
-def split_list(list_to_split: list, percentages) -> list[list]:
-    if len(list_to_split) < len(percentages):
-        raise IndexError("There are more percantages then lists to split")
+def ema_smoothing(data: np.ndarray, a: float = 1) -> np.ndarray:
+    for i in range(1, len(data)):
+        data[i] = a * data[i - 1] + (1 - a) * data[i]
 
-    sizes = [max(1, round(percentage * len(list_to_split))) for percentage in percentages]
-
-    if sum(sizes) < len(list_to_split):
-        raise IndexError("2")
-
-    while sum(sizes) != len(list_to_split):
-        index = random.randint(0, len(sizes) - 1)
-        sizes[index] = max(1, sizes[index] - 1)
-
-    current_index = 0
-    split_list = []
-
-    for size in sizes:
-        split_list.append(list_to_split[current_index:current_index+size])
-        current_index += size
-
-    return split_list
-
-def split_list_percentage(list_to_split: list, percentages: list) -> list:
-    list_to_split = list(itertools.chain(*list_to_split))
-    percentages = [0] + [int(percentage * len(list_to_split)) for percentage in percentages] + [len(list_to_split)]  # percentages have to be ..<..<..< e.g. [0.6, 0.8, 0.9]
-
-    split_list = []
-
-    for i, p in enumerate(percentages):
-        if i + 1 == len(percentages):
-            break
-
-        split_list.append(list_to_split[p: percentages[i+1]])
-
-    return split_list
-
-
-# def visual(true, preds=None, name='./pic/test.pdf'):
-#     """
-#     Results visualization
-#     """
-#     plt.figure()
-#     plt.plot(true, label='GroundTruth', linewidth=2)
-#     if preds is not None:
-#         plt.plot(preds, label='Prediction', linewidth=2)
-#     plt.legend()
-#     plt.savefig(name, bbox_inches='tight')
-#
-# def test_params_flop(model,x_shape):
-#     """
-#     If you want to thest former's flop, you need to give default value to inputs in model.forward(), the following code can only pass one argument to forward()
-#     """
-#     model_params = 0
-#     for parameter in model.parameters():
-#         model_params += parameter.numel()
-#         print('INFO: Trainable parameter count: {:.2f}M'.format(model_params / 1000000.0))
-#     from ptflops import get_model_complexity_info
-#     with torch.cuda.device(0):
-#         macs, params = get_model_complexity_info(model.cuda(), x_shape, as_strings=True, print_per_layer_stat=True)
-#         # print('Flops:' + flops)
-#         # print('Params:' + params)
-#         print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
-#         print('{:<30}  {:<8}'.format('Number of parameters: ', params))
+    return data

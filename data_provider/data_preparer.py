@@ -8,7 +8,7 @@ import os
 import pickle
 import sys
 import statsmodels.api as sm
-
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import ndarray
@@ -139,54 +139,98 @@ def _list_milliseconds_only_sizes_(data_flow: ndarray, aggregation_time: int = 1
     return np.array(flow)
 
 
-def _split_flow(split_flow: np.ndarray, x: int, aggregation_time: int):
-    # zero_indices = np.where(split_flow[:, 1] != 0)[0]
-    # result = np.split(split_flow, zero_indices[np.where(np.diff(zero_indices) > x)[0] + 1])
-    #
-    # for i, res in enumerate(result):
-    #     result[i] = result[i][:-np.where(res[:, 1] != 0)[0][-1]]
-    splits = []
-    current_split = []
+def _list_milliseconds_only_sizes_not_np(data_flow: ndarray, aggregation_time: int = 1000) -> list:
+    start_time = int(data_flow[0][0] * aggregation_time)  # assumes packets are ordered
+    end_time = int(data_flow[-1][0] * aggregation_time) + 1
+    flow = [[time / aggregation_time, 0] for time in range(start_time, end_time + 1)]
+
+    for packet in data_flow:
+        packet_time = int(packet[0] * aggregation_time)
+        flow[packet_time - start_time][1] += packet[1]
+
+    return flow
+
+
+def _split_flow(split_flow: list[list], x: int, aggregation_time: int):
+    y = 50
+
+    current = []
+
+    filtered_list = []
     zero_counter = 0
+    non_zero_counter = 0
 
-    counter = 0
+    # If 0 -> zero_counter + 1; current append 0
+    # If 0 and zero_counter > x -> zero_counter += 1
 
-    def before_after(start, end) -> (list, list):
-        return [np.array([time / aggregation_time, 0]) for time in range(start - int(x / 2), start)], \
-            [np.array([time / aggregation_time, 0]) for time in range(aggregation_time, end + int(x / 2))]
+    # If Z -> zero_counter = 0; non_zero_counter += 1; current append Z
+    # If Z and zero_counter > x and non_zero_counter >= y -> filtered append Zeros and current; zero_counter = 0, non_zero_counter = 0
+    # If Z; zero_counter > x; non_zero_counter < y -> zero_counter = 0; non_zero_counter = 0
 
     for value in split_flow:
-        if value[1] == 0 and len(current_split) == 0:
-            counter += 1
-            continue
-
         if value[1] == 0:
-            current_split.append(value)
             zero_counter += 1
-            if zero_counter > x:
-                before, after = before_after(int(current_split[0][0].item() * aggregation_time),
-                                             int(current_split[-1][0].item() * aggregation_time))
-                splits.append(np.stack(before + current_split + after))
-                current_split = []
-                zero_counter = 0
         else:
-            current_split.append(value)
+            if zero_counter > x and non_zero_counter > y:
+                minZ = min(x, max(zero_counter - x, 0))
+                filtered_list.extend([[time / aggregation_time, 0] for time in
+                                      range(int((value[0] * aggregation_time)) - minZ,
+                                            int((value[0] * aggregation_time)))]
+                                     + current + [value])
+                current = []
+                non_zero_counter = -1
+                zero_counter = 0
+                continue
+
+            if zero_counter > x and non_zero_counter <= y:
+                current = []
+                non_zero_counter = -1
+
+            zero_counter = 0
+            non_zero_counter += 1
+
+        if zero_counter <= x:
+            current.append(value)
+
+    return filtered_list
+
+def _split_flow_n(split_flow: list[list], split_at: int, min_length: int, aggregation_time: int):
+    current = []
+
+    filtered_list = []
+    zero_counter = 0
+
+    # If 0 -> zero_counter + 1; current append 0
+    # If 0 and zero_counter > x -> zero_counter += 1
+
+    # If Z -> zero_counter = 0; non_zero_counter += 1; current append Z
+    # If Z and zero_counter > x and non_zero_counter >= y -> filtered append Zeros and current; zero_counter = 0, non_zero_counter = 0
+    # If Z; zero_counter > x; non_zero_counter < y -> zero_counter = 0; non_zero_counter = 0
+
+    for value in split_flow:
+        if value[1] == 0:
+            zero_counter += 1
+        else:
+            if zero_counter > split_at and len(current) > (min_length + split_at):
+                minZ = min(split_at, max(zero_counter - split_at, 0))
+                filtered_list.extend(current)
+                current = [[time / aggregation_time, 0] for time in range(int(value[0] * aggregation_time) - minZ, int(value[0] * aggregation_time))]
+            elif zero_counter > split_at:
+                current = [[time / aggregation_time, 0] for time in range(int(value[0] * aggregation_time) - split_at, int(value[0] * aggregation_time))]
+
             zero_counter = 0
 
-    if len(current_split) > 0:
-        before, after = before_after(int(current_split[0][0].item() * aggregation_time),
-                                     int(current_split[-1][0].item() * aggregation_time))
-        splits.append(np.stack(before + current_split + after))
+        if zero_counter <= split_at:
+            current.append(value)
 
-    return splits
+    if len(filtered_list) > 2:
+        before = [[time / aggregation_time, 0] for time in range(int(filtered_list[0][0] * aggregation_time) - (split_at // 2), int(filtered_list[0][0] * aggregation_time))]
+        after = [[time / aggregation_time, 0] for time in range(int(filtered_list[-1][0] * aggregation_time) + 1, int(filtered_list[-1][0] * aggregation_time) + (split_at // 2))]
+        filtered_list = before + filtered_list + current + after if len(current) > min_length + split_at else before + filtered_list + after
 
+    return filtered_list
 
 def _split_flow_list(split_flow: list, x: int, aggregation_time: int):
-    # zero_indices = np.where(split_flow[:, 1] != 0)[0]
-    # result = np.split(split_flow, zero_indices[np.where(np.diff(zero_indices) > x)[0] + 1])
-    #
-    # for i, res in enumerate(result):
-    #     result[i] = result[i][:-np.where(res[:, 1] != 0)[0][-1]]
     splits = []
     current_split = []
     zero_counter = 0
@@ -227,7 +271,8 @@ def calculate_hurst_exponent(data: np.ndarray):
     if len(data) < 10:
         return -1, -1, [[], []]
 
-    segment_sizes = list(map(lambda x: int(10 ** x), np.arange(math.log10(10), math.log10(len(data)), 0.25))) + [len(data)]
+    segment_sizes = list(map(lambda x: int(10 ** x), np.arange(math.log10(10), math.log10(len(data)), 0.25))) + [
+        len(data)]
 
     RS = []
 
@@ -238,7 +283,7 @@ def calculate_hurst_exponent(data: np.ndarray):
         if R == 0 or S == 0:
             return 0
 
-        return R/S
+        return R / S
 
     for segment_size in segment_sizes:
         chunked_data = [data[i:i + segment_size] for i in range(0, len(data), segment_size)]
@@ -294,13 +339,21 @@ class DataTransformerBase:
         print(f"[+] Wrote {len(self.data)} successfully in file with path {py_save_path}")
         return py_save_path
 
+    def save_csv(self, csv_save_path: str):
+        with open(csv_save_path, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerows(self.data)
+
+        print(f"[+] Wrote {len(self.data)} successfully in file with path {csv_save_path}")
+
     @abc.abstractmethod
     def _get_data(self, data_flows: list[np.ndarray]):
         raise NotImplementedError
 
 
 class DatatransformerEven(DataTransformerBase):
-    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int, filter_size: int = 4,
+    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int,
+                 filter_size: int = 4,
                  step_size=1, aggregation_time: int = 1000, processes=4):
         self.max_flows = max_flows
         self.seq_len = seq_len
@@ -323,11 +376,11 @@ class DatatransformerEven(DataTransformerBase):
         if self.seq_len is None or self.pred_len is None:
             raise AttributeError("Seq_len and pred_len have to be not None")
 
-        # data_flows = self._list_milliseconds_only_sizes_(data_flows, self.aggregation_time)
         data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, self.aggregation_time, self.filter_size, flow) for flow in range(len(data_flows))]
+                   self.pred_len, self.step_size, self.aggregation_time, self.filter_size, flow) for flow in
+                  range(len(data_flows))]
 
         process_pool = multiprocessing.Pool(processes=self.processes)
         results = process_pool.starmap(self.__create_sequences__, params)
@@ -378,6 +431,64 @@ class DatatransformerEven(DataTransformerBase):
         return seq
 
 
+class DatatransformerEvenSimple(DataTransformerBase):
+    def __init__(self, file_path: str, min_length: int = 100, aggregation_time: int = 1000, processes: int=4):
+        self.aggregation_time = aggregation_time
+        self.processes = processes
+        self.min_length = min_length
+
+        super().__init__(file_path)
+
+    def _get_data(self, data_flows: list[ndarray]):
+        print("[+] Starting data preparation...")
+
+        data_flows = split_list(data_flows, self.processes)
+
+        print(f"[+] Starting {self.processes} processes containing: {[len(s) for s in data_flows]}")
+
+        params = [(data_flows[flow], self.aggregation_time, flow, self.min_length) for flow in range(len(data_flows))]
+
+        process_pool = multiprocessing.Pool(processes=self.processes)
+        results = process_pool.starmap(self.__create_sequences__, params)
+        process_pool.close()
+        process_pool.join()
+
+        flow_seq = []
+        for res in results:
+            flow_seq += res
+
+        print(f"[+] Found sequences: {len(flow_seq)} in {sum(len(x) for x in data_flows)} flows sequences")
+
+        print("[+] Parse timestamp...")
+        flow_seq = list(map(lambda x: [datetime.datetime.fromtimestamp(x[0]).strftime('%Y-%m-%d %H:%M:%S.%f'), x[1]], flow_seq))
+
+        flow_seq = [['date', 'bytes']] + flow_seq
+        return flow_seq
+
+    @staticmethod
+    def __create_sequences__(data_flows: list[np.ndarray], aggregation_time: int, flow_id: int, min_length: int = 336):
+        res_data_flows = []
+        counter = 0
+        skipped_counter = 0
+
+        for flow in data_flows:
+            flow = _list_milliseconds_only_sizes_not_np(data_flow=flow, aggregation_time=aggregation_time)  # aggregate
+
+            if len(flow) < 4 * min_length:
+                counter += 1
+                skipped_counter += 1
+                continue
+
+            flow = _split_flow_n(split_flow=flow, split_at=min_length, min_length=4 * min_length, aggregation_time=aggregation_time)  # cleanup
+            res_data_flows.extend(flow)
+
+            if counter % 10 == 0:
+                print(f"[+] Found {len(res_data_flows)} in {counter} / {len(data_flows)} | Skipped: {skipped_counter} | process id {flow_id}")
+            counter += 1
+
+        return res_data_flows
+
+
 class DataTransformerSinglePacketsEven(DataTransformerBase):
     def __init__(self, pcap_file_path: str, max_flows: int, seq_len: int, max_mil_seq: int, label_len: int,
                  pred_len: int, filter_size: int, step_size=1, aggregation_time=1000, processes=4):
@@ -406,7 +517,8 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         data_flows = split_list(data_flows, self.processes)
 
         params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, self.max_mil_seq, self.aggregation_time, self.filter_size, flow) for flow in
+                   self.pred_len, self.step_size, self.max_mil_seq, self.aggregation_time, self.filter_size, flow) for
+                  flow in
                   range(len(data_flows))]
 
         process_pool = multiprocessing.Pool(processes=self.processes)
@@ -440,7 +552,8 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
             flow_aggregated = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=aggregation_time)
             # flow = _split_flow_list(split_flow=flow, x=max_mil_seq, aggregation_time=aggregation_time)
 
-            if len(flow_packets) != len(flow_aggregated) or flow_packets[0][0] != flow_aggregated[0, 0] or flow_packets[-1][0] != flow_aggregated[-1, 0]:
+            if len(flow_packets) != len(flow_aggregated) or flow_packets[0][0] != flow_aggregated[0, 0] or \
+                    flow_packets[-1][0] != flow_aggregated[-1, 0]:
                 raise IndexError("Both aggregation types should have the same result!")
 
             only_sizes = flow_aggregated[:, 1]
@@ -489,7 +602,8 @@ def _analyse_flows(file_path: str, save_path: str):
             with open(save_path, 'rb') as f:
                 data = pickle.load(f)
 
-            print(data)
+            print([round(s, 3) for s in data["hurst"]])
+
             return
         except Exception:
             print("Could not pickle load data")
@@ -571,15 +685,28 @@ def __create_split_flow_files__():
     parse_pcap_to_list(path, save_path)
     # parse_pcap_to_list(path_test, save_path_test)
 
+
 def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
     for j in aggr_time:
         for i in pred_lens:
             save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_p\\univ1_pt1_even_336_48_{i}_{j}.pkl'
-            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i, filter_size=100,
+            data_transformer = DatatransformerEven(load_path, max_flows=-1, seq_len=336, label_len=48, pred_len=i,
+                                                   filter_size=100,
                                                    step_size=10, aggregation_time=j, processes=10)
 
             data_transformer.save_python_object(save_path)
             print(f"[x] Finished {i} and saved it in {save_path}")
+
+    print("<<<<<<<<<<<<<<<< Done Even >>>>>>>>>>>>>>>>")
+
+
+def __save_even_new__(load_path: str, aggr_time: list):
+    for j in aggr_time:
+        save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_test\\univ1_pt1_even_{j}.pkl'
+        data_transformer = DatatransformerEvenSimple(load_path, min_length=336, aggregation_time=j, processes=10)
+
+        data_transformer.save_csv(save_path)
+        print(f"[x] Finished {j} and saved it in {save_path}")
 
     print("<<<<<<<<<<<<<<<< Done Even >>>>>>>>>>>>>>>>")
 
@@ -600,14 +727,15 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'  # _test
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full_v1.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
-    _analyse_flows(path, save_analysis)
+    # _analyse_flows(path, save_analysis)
     # __create_split_flow_files__()  # only if packets got changed
 
+    __save_even_new__(path, aggregation_time)
     # __save_even__(preds, path, aggregation_time)
     # __save_single__(preds, path, aggregation_time)
 

@@ -2,7 +2,7 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 
 from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Dataset_Custom, Dataset_Pred, \
-    Dataset_Traffic_Singe_Packets, Dataset_Traffic_Even, Dataset_Test
+    Dataset_Traffic_Singe_Packets, Dataset_Traffic_Even, Dataset_Test, Dataset_Traffic_Even_n
 from torch.utils.data import DataLoader
 
 data_dict = {
@@ -12,6 +12,7 @@ data_dict = {
     'ETTm2': Dataset_ETT_minute,
     'Traffic_Single': Dataset_Traffic_Singe_Packets,
     'Traffic_Even': Dataset_Traffic_Even,
+    'Traffic_Even_N': Dataset_Traffic_Even_n,
     'Test': Dataset_Test,
     'custom': Dataset_Custom,
 }
@@ -48,7 +49,8 @@ def data_provider(args, flag, collate_fn=None):
         timeenc=timeenc,
         freq=freq,
         random_seed=args.random_seed,
-        use_minmax_scaler=args.use_minmax_scaler
+        fourier_transform=args.fourier_transform,
+        smooth=args.smooth
     )
     print(flag, len(data_set))
     data_loader = DataLoader(

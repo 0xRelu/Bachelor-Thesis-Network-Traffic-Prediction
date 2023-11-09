@@ -1,3 +1,5 @@
+import sys
+
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from models import Informer, Autoformer, Transformer, DLinear, Linear, NLinear, PatchTST, TransformerPytorch, MLPLinear, \
@@ -171,7 +173,7 @@ class Exp_Main(Exp_Basic):
 
         return train_loss, trues_preds
 
-    def test(self, test_data, test_loader, test=0, inverse_scale=False):
+    def test(self, test_data, test_loader, test=0, inverse_scale=False, new=True):
         if test:
             print('loading model')
             # TODO load model
@@ -225,8 +227,12 @@ class Exp_Main(Exp_Basic):
                         'test_mape': mape, 'test_mspe': mspe})
 
         if inverse_scale:
-            preds_inverse = test_data.inverse_transform(preds)
-            trues_inverse = test_data.inverse_transform(trues)
+            if new:
+                preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
+                trues_inverse = np.stack([test_data.inverse_transform(x) for x in trues])
+            else:
+                preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
+                trues_inverse = np.stack([test_data.inverse_transform(x) for x in trues])
 
             preds_inverse = preds_inverse.reshape(-1, preds_inverse.shape[-2], preds_inverse.shape[-1])
             trues_inverse = trues_inverse.reshape(-1, trues_inverse.shape[-2], trues_inverse.shape[-1])

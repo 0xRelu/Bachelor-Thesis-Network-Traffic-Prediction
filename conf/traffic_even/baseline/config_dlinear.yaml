@@ -42,7 +42,8 @@ params:
   #checkpoints: "Not needed for now?"
   embed: timeF
   random_seed: 12
-  use_minmax_scaler: True
+  fourier_transform: False
+  smooth: False
 
   # Forecasting task
   seq_len: 336 # input sequence length

@@ -10,7 +10,7 @@ job-name: Vanilla-Transformer-Job-Traffic-Even    # this will be the experiment'
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 1000  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 1200  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 4000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
+path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 100  # number of iterations per repetition
+iterations: 5  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,13 +35,14 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_p # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1
+  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_test # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_p #
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
-  target: OT # target feature in S or MS task
+  target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
   random_seed: 12
-  use_minmax_scaler: True
+  fourier_transform: False
+  smooth: False
 
   # Forecasting task
   seq_len: 336 # input sequence length
@@ -51,7 +52,7 @@ params:
   # optimization
   num_workers: 1 # data loader num workers
   batch_size: 128 # batch size of train input data
-  learning_rate: 0.001 # optimizer learning rate
+  learning_rate: 0.05 # optimizer learning rate
   des: test # exp description -- not necessary??
   loss: mse # loss function
   lradj: type3 # adjust learning rate
@@ -66,11 +67,11 @@ params:
   use_multi_gpu: 0
 
   # Data loader
-  data: Traffic_Even
+  data: Traffic_Even_N
 
 list:
-  data_path: [univ1_pt1_even_336_48_12_1000.pkl, univ1_pt1_even_336_48_18_1000.pkl, univ1_pt1_even_336_48_24_1000.pkl, univ1_pt1_even_336_48_30_1000.pkl]
-  pred_len: [12, 18, 24, 30]
+  data_path: [univ1_pt1_even_1000.pkl]
+  pred_len: [ 96 ]
 
 
 #####################################################################################################################
@@ -103,7 +104,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Vanilla-Transformer-Traffic-Even-v14
+    project: Vanilla-Transformer-Traffic-Even-v14-n-test
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
