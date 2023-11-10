@@ -275,7 +275,7 @@ class Dataset_Traffic_Even_n(Dataset):
         self.freq = freq
         self.fourier_transform = fourier_transform
         self.smooth = smooth  # gaussian, uniform and ema
-        self.stride = 10
+        self.stride = 100
         self.sigma = 2
         self.alpha = 0.3
         self.kernel = np.array([0.05, 0.1, 0.2, 0.4, 0.2, 0.1, 0.05])

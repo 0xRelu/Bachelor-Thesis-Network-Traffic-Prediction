@@ -474,12 +474,12 @@ class DatatransformerEvenSimple(DataTransformerBase):
         for flow in data_flows:
             flow = _list_milliseconds_only_sizes_not_np(data_flow=flow, aggregation_time=aggregation_time)  # aggregate
 
-            if len(flow) < 4 * min_length:
+            if len(flow) < 8 * min_length:
                 counter += 1
                 skipped_counter += 1
                 continue
 
-            flow = _split_flow_n(split_flow=flow, split_at=min_length, min_length=4 * min_length, aggregation_time=aggregation_time)  # cleanup
+            flow = _split_flow_n(split_flow=flow, split_at=min_length, min_length=8 * min_length, aggregation_time=aggregation_time)  # cleanup
             res_data_flows.extend(flow)
 
             if counter % 10 == 0:
@@ -727,7 +727,7 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1.pkl'  # _test
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'  # _test
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full_v1.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds

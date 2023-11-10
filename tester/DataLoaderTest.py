@@ -28,7 +28,7 @@ if __name__ == "__main__":
         'data_path': "univ1_pt1_even_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
         'seq_len': 336,
         'label_len': 48,
-        'pred_len': 12,
+        'pred_len': 96,
         'features': "M",
         'target': "bytes",
         'num_workers': 1,
@@ -40,22 +40,11 @@ if __name__ == "__main__":
 
     config = dotdict(cw_config)
 
-    test_data, test_loader = data_provider(config, flag='test')
-    print("Length: ", len(test_data))
-
-    batch_seq = []
-
-    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
-        plot_batches(batch_x.detach().numpy()[:5])
-        sys.exit(0)
-        print(f"\tTest {i / len(test_loader)}")
-
-    sys.exit(0)
-    zero_counter_x = []
-    zero_counter_y = []
-
     train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
+
+    zero_counter_x = []
+    zero_counter_y = []
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
         if i % 100 == 0:
@@ -82,6 +71,16 @@ if __name__ == "__main__":
     zero_counter_y = np.mean(zero_counter_y)
     print(f"{zero_counter_y}")
     sys.exit(0)
+
+    batch_seq = []
+
+    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+        plot_batches(batch_x.detach().numpy()[:5])
+        sys.exit(0)
+        print(f"\tTest {i / len(test_loader)}")
+
+    sys.exit(0)
+
 
     val_data, val_loader = data_provider(config, flag='val')
     print("Length: ", len(val_data))

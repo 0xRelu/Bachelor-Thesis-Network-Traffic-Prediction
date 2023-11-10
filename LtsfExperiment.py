@@ -53,8 +53,8 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
 
             test_results_not_scaled, trues_preds_test_real = self.expMain.test(test_data=self.test_data,
                                                                                test_loader=self.test_loader,
-                                                                               inverse_scale=True,
-                                                                               new=True)
+                                                                               inverse_scale=False,
+                                                                               new=False)
             self.__log_trues_preds__(cw_config, trues_preds_test_real, "test_real")
 
             results.update(test_results_not_scaled)
