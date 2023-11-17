@@ -1,14 +1,20 @@
+import ast
 import datetime
 import itertools
 import math
 import pickle
 import random
+import sys
 
 import numpy as np
 import pandas as pd
 import os
+
+import scipy.signal
 import torch
+from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter1d, convolve
+from scipy.signal import stft
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 
@@ -24,7 +30,7 @@ warnings.filterwarnings('ignore')
 class Dataset_Test(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000, transform=False, smooth_param=None):
         self.seq_len = size[0]
         self.label_len = size[1]
         self.pred_len = size[2]
@@ -44,7 +50,7 @@ class Dataset_Test(Dataset):
 class Dataset_Traffic_Singe_Packets(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, transform=False, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         self.seq_len = size[0]
         self.label_len = size[1]
@@ -58,7 +64,6 @@ class Dataset_Traffic_Singe_Packets(Dataset):
         self.data_path = data_path[1:] if data_path.startswith('/') or data_path.startswith('\\') else data_path
 
         self.random_seed = random_seed
-        self.fourier_transform = fourier_transform
         self.scaler = None
 
         self.__read_data__()
@@ -152,7 +157,7 @@ class Dataset_Traffic_Singe_Packets(Dataset):
 class Dataset_Traffic_Even(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_new_csv.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, transform=False, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         self.seq_len = size[0]
         self.label_len = size[1]
@@ -165,7 +170,6 @@ class Dataset_Traffic_Even(Dataset):
         self.data_path = data_path
 
         self.random_seed = random_seed
-        self.fourier_transform = fourier_transform
         self.scaler = None
 
         self.__read_data__()
@@ -252,7 +256,7 @@ class Dataset_Traffic_Even(Dataset):
 class Dataset_Traffic_Even_n(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_even.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, fourier_transform=False, smooth=None):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=100, transform=None, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -273,12 +277,9 @@ class Dataset_Traffic_Even_n(Dataset):
         self.scale = scale
         self.timeenc = timeenc
         self.freq = freq
-        self.fourier_transform = fourier_transform
-        self.smooth = smooth  # gaussian, uniform and ema
+        self.transform = transform
+        self.smooth_param = smooth_param  # gaussian, uniform and ema
         self.stride = 100
-        self.sigma = 2
-        self.alpha = 0.3
-        self.kernel = np.array([0.05, 0.1, 0.2, 0.4, 0.2, 0.1, 0.05])
 
         self.root_path = root_path
         self.data_path = data_path
@@ -311,21 +312,32 @@ class Dataset_Traffic_Even_n(Dataset):
         elif self.features == 'S':
             df_data = df_raw[[self.target]]
 
-        data = df_data.values
+        data = df_data.values  # date, bytes 
 
-        if self.fourier_transform:
-            self.data = np.real(np.fft.fft(data.reshape(-1)))  # self.data is required for inverse fft
-            data = self.data.copy().reshape(-1, 1)
-            data = np.column_stack((data.real, data.imag))  # maybe dont add complex values
+        if self.transform == 'stft':
+            data_y = data.copy()
 
-        if self.smooth == 'gaussian':
-            data = gaussian_filter1d(data.reshape(-1), sigma=self.sigma, mode="nearest").reshape(-1, 1)
+            f, t, Zxx = stft(data.flatten(), nperseg=10, noverlap=9)  # we assume in the following that we t = list(range(len(data)) or it will not work as intended
+            data = Zxx.transpose()
+            data = np.concatenate((data.real, data.imag), axis=1)
 
-        if self.smooth == 'uniform':
-            data = convolve(data.reshape(-1), weights=self.kernel, mode="constant", cval=0.0).reshape(-1, 1)
+            if data.shape[0] > data_y.shape[0]:
+                data_y = np.pad(data_y.flatten(), (0, data.shape[0] - data_y.shape[0]), mode='constant', constant_values=0).reshape(-1, 1)
 
-        if self.smooth == 'ema':
-            data = ema_smoothing(data.reshape(-1), a=self.alpha).reshape(-1, 1)
+            train_data_y = data_y[border1s[0]:border2s[0]]
+            self.scaler.fit(train_data_y)
+            data_y = self.scaler.transform(data_y)
+
+        if self.transform == 'gaussian':
+            data = gaussian_filter1d(data.reshape(-1), sigma=self.smooth_param, mode="nearest").reshape(-1, 1)
+
+        if self.transform == 'uniform':
+            kernel = np.array([1 / self.smooth_param for _ in range(-((self.smooth_param - 1) // 2),
+                                                                    ((self.smooth_param - 1) // 2))])
+            data = convolve(data.reshape(-1), weights=kernel, mode="constant", cval=0.0).reshape(-1, 1)
+
+        if self.transform == 'ema':
+            data = ema_smoothing(data.reshape(-1), a=self.smooth_param).reshape(-1, 1)
 
         if self.scale:
             train_data = data[border1s[0]:border2s[0]]
@@ -349,7 +361,7 @@ class Dataset_Traffic_Even_n(Dataset):
             data_stamp = data_stamp.transpose(1, 0)
 
         self.data_x = data[self.border1:self.border2]
-        self.data_y = data[self.border1:self.border2]
+        self.data_y = data[self.border1:self.border2] if self.transform != 'stft' else data_y[self.border1:self.border2]
         self.data_stamp = data_stamp
         self.index = np.arange(0, len(self.data_x) - self.seq_len - self.pred_len + 1, self.stride)
 
@@ -388,7 +400,7 @@ class Dataset_Traffic_Even_n(Dataset):
 class Dataset_ETT_hour(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000, transform=False, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -453,6 +465,7 @@ class Dataset_ETT_hour(Dataset):
         self.data_y = data[border1:border2]
         self.data_stamp = data_stamp
 
+
         self.random_index = [random.randint(border1, border2 - self.seq_len - self.pred_len + 1) for _ in range(10)]
 
     def __getitem__(self, index):
@@ -480,7 +493,7 @@ class Dataset_ETT_hour(Dataset):
 class Dataset_ETT_minute(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTm1.csv',
-                 target='OT', scale=True, timeenc=0, freq='t', random_seed=1000, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, timeenc=0, freq='t', random_seed=1000, transform=False, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -570,7 +583,7 @@ class Dataset_ETT_minute(Dataset):
 class Dataset_Custom(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, timeenc=0, freq='h', random_seed=1000, transform=False, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -671,7 +684,8 @@ class Dataset_Custom(Dataset):
 class Dataset_Pred(Dataset):
     def __init__(self, root_path, flag='pred', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, inverse=False, timeenc=0, freq='15min', cols=None, random_seed=1000, fourier_transform=False, smooth=False):
+                 target='OT', scale=True, inverse=False, timeenc=0, freq='15min', cols=None, random_seed=1000,
+                 transform=False, smooth_param=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:

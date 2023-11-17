@@ -4,7 +4,7 @@ name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: PatchTST-Job-Even    # this will be the experiment's name in slurm
+job-name: Non-Stationary-Transformer-Job-Traffic-Even    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
@@ -20,7 +20,7 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
 iterations: 100  # number of iterations per repetition
 
@@ -35,20 +35,17 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
   random_seed: 12
-  fourier_transform: False
-  smooth: None # gaussian, ema, uniform
-  smooth_param: None
 
   # Forecasting task
   seq_len: 336 # input sequence length
   label_len: 48 # start token length
-  # pred_len: 30 # prediction sequence length
+  pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -72,18 +69,19 @@ params:
   data_path: univ1_pt1_even_1000.csv
 
 list:
-  pred_len: [ 12, 18, 24, 30 ]
+  transform: [ gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema ] # gaussian, ema, uniform
+  smooth_param: [ 2, 4, 5, 5, 9, 13, 0.3, 0.45, 0.6 ]
 
 
 #####################################################################################################################
 ---
 # Vanilla Transformer Experiment
-name: PatchTTST-Traffic-Even
+name: Non-stationary-Transformer-Traffic-Even
 
 params:
   # Basic
-  model_id: PatchTST
-  model: PatchTST
+  model_id: Non-Stationary
+  model: Non-Stationary
 
   # Former specific
   embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
@@ -103,20 +101,13 @@ params:
   activation: gelu # activation
   output_attention: False # whether to output attention in encoder
   do_predict: False # whether to predict unseen future data
-  fc_dropout: 0.05
-  head_dropout: 0.0
-  patch_len: 16
-  stride: 8
-  padding_patch: 'end'
-  revin: 1
-  affine: 0
-  subtract_last: 0
-  decomposition: 0
-  kernel_size: 25
-  individual: 0
+
+  # de-stationary projector params
+  p_hidden_dims: [128, 128]
+  p_hidden_layers: 2
 
 wandb:
-    project: PatchTST-Traffic-Even-n-v1
+    project: Non-Stationary-Even-Smooth-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

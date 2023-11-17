@@ -4,7 +4,7 @@ name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: PatchTST-Job-Even    # this will be the experiment's name in slurm
+job-name: Vanilla-Transformer-Job-Traffic-Even    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
@@ -41,14 +41,11 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
   random_seed: 12
-  fourier_transform: False
-  smooth: None # gaussian, ema, uniform
-  smooth_param: None
 
   # Forecasting task
   seq_len: 336 # input sequence length
   label_len: 48 # start token length
-  # pred_len: 30 # prediction sequence length
+  pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -72,7 +69,8 @@ params:
   data_path: univ1_pt1_even_1000.csv
 
 list:
-  pred_len: [ 12, 18, 24, 30 ]
+  transform: [gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema] # gaussian, ema, uniform
+  smooth_param: [2, 4, 5, 5, 9, 13, 0.3, 0.45, 0.6]
 
 
 #####################################################################################################################
@@ -116,7 +114,7 @@ params:
   individual: 0
 
 wandb:
-    project: PatchTST-Traffic-Even-n-v1
+    project: PatchTST-Even-Smooth-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

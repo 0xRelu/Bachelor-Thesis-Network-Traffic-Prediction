@@ -49,8 +49,8 @@ def data_provider(args, flag, collate_fn=None):
         timeenc=timeenc,
         freq=freq,
         random_seed=args.random_seed,
-        fourier_transform=args.fourier_transform,
-        smooth=args.smooth
+        transform=args.transform,
+        smooth_param=args.smooth_param
     )
     print(flag, len(data_set))
     data_loader = DataLoader(

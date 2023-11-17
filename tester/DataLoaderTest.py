@@ -24,8 +24,8 @@ if __name__ == "__main__":
         'data': 'Traffic_Even_N',
         'batch_size': 128,
         'freq': "h",
-        'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_test",
-        'data_path': "univ1_pt1_even_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
+        'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
+        'data_path': "univ1_pt1_even_1000.csv",  # univ1_pt1_even_336_48_12_1000.pkl
         'seq_len': 336,
         'label_len': 48,
         'pred_len': 96,
@@ -34,14 +34,23 @@ if __name__ == "__main__":
         'num_workers': 1,
         'embed': 'timeF',
         'random_seed': 12,
-        'fourier_transform': False,
-        'smooth': 'gaussian'
+        'transform': 'stft',
+        'smooth_param': None
     }
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
+
+    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+        print(batch_x.detach().numpy()[2].reshape(-1).tolist())
+        plot_batches(batch_x.detach().numpy()[2:3])
+        sys.exit(0)
+        print(f"\tTest {i / len(test_loader)}")
+
+    sys.exit(0)
+
 
     zero_counter_x = []
     zero_counter_y = []
@@ -73,13 +82,6 @@ if __name__ == "__main__":
     sys.exit(0)
 
     batch_seq = []
-
-    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
-        plot_batches(batch_x.detach().numpy()[:5])
-        sys.exit(0)
-        print(f"\tTest {i / len(test_loader)}")
-
-    sys.exit(0)
 
 
     val_data, val_loader = data_provider(config, flag='val')
