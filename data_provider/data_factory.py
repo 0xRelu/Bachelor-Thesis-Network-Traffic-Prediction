@@ -48,7 +48,7 @@ def data_provider(args, flag, collate_fn=None):
         target=args.target,
         timeenc=timeenc,
         freq=freq,
-        random_seed=args.random_seed,
+        stride=args.stride,
         transform=args.transform,
         smooth_param=args.smooth_param
     )

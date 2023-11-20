@@ -20,7 +20,7 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # #
 repetitions: 1    # number of times one set of parameters is run
 iterations: 100  # number of iterations per repetition
 
@@ -35,19 +35,17 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n #
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: "Not needed for now?"
   embed: timeF
-  random_seed: 12
-  transform: stft
 
   # Forecasting task
-  seq_len: 336 # input sequence length
-  label_len: 48 # start token length
-  pred_len: 30 # prediction sequence length
+  # seq_len: 2000 # input sequence length
+  label_len: 100 # start token length
+  # pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -69,9 +67,23 @@ params:
   # data
   data: Traffic_Even_N
   data_path: univ1_pt1_even_1000.csv
+  transform: stft
+  # stride: 100
 
-  list:
-    smooth_param: [ (10, 9) ]
+list:
+  smooth_param: [ '(10,9)', '(100, 90)', '(500, 450)',
+                  '(10,9)', '(100, 90)', '(500, 450)',
+                  '(10,9)', '(100, 90)', '(500, 450)' ] # stft parameters: (segment_length, overlap)
+  seq_len: [ 200, 20, 4,
+             200, 20, 4,
+             200, 20, 4 ] # ~ 2000
+  pred_len: [ 96, 96, 96,
+              172, 172, 172,
+              336, 336, 336,
+              720, 720, 720 ]
+  stride: [ 100, 10, 2,
+            100, 10, 2,
+            100, 10, 2 ] # ~ 100
 
 ###############################################   RLINEAR   ###############################################
 ---
@@ -87,7 +99,7 @@ params:
   rev: 1
 
 wandb:
-    project: RLinear-Even-stft-v1-test
+    project: RLinear-Even-stft-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

@@ -41,12 +41,12 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: "Not needed for now?"
   embed: timeF
-  random_seed: 12
+  stride: 100
 
   # Forecasting task
-  seq_len: 336 # input sequence length
-  label_len: 48 # start token length
-  pred_len: 30 # prediction sequence length
+  seq_len: 2000 # input sequence length
+  label_len: 100 # start token length
+  # pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -70,8 +70,16 @@ params:
   data_path: univ1_pt1_even_1000.csv
 
 list:
-  transform: [ gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema ] # gaussian, ema, uniform
-  smooth_param: [ 2, 4, 5, 5, 9, 13, 0.3, 0.45, 0.6 ]
+  transform: [ gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema,
+               gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema,
+               gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema ] # gaussian, ema, uniform
+  smooth_param: [ 2, 4, 5, 5, 9, 13, 0.3, 0.45, 0.6,
+                  2, 4, 5, 5, 9, 13, 0.3, 0.45, 0.6,
+                  2, 4, 5, 5, 9, 13, 0.3, 0.45, 0.6 ]
+  pred_len: [ 96, 96, 96, 96, 96, 96, 96, 96, 96,
+              172, 172, 172, 172, 172, 172, 172, 172, 172,
+              336, 336, 336, 336, 336, 336, 336, 336, 336,
+              720, 720, 720, 720, 720, 720, 720, 720, 720]
 
 ###############################################   LINEAR   ###############################################
 ---
@@ -83,7 +91,7 @@ params:
   model: Linear
 
 wandb:
-  project: Linear-Even-Smooth-v1
+  project: Linear-Even-Smooth-v2
   group: alr
   # sweep_id: new
   # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
