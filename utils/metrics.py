@@ -31,11 +31,29 @@ def MSPE(pred, true):
     return np.mean(np.square((pred - true) / true))
 
 
+def HVI(pred, true, interval=10):
+    error = []
+    for i in list(range(len(pred))):
+        pred_peak_index = pred[i].argmax()
+        pred_peak_value = pred[i, pred_peak_index]
+
+        true_peak_index = true[i, max(pred_peak_index - interval, 0): min(pred_peak_index + interval, true.shape[1])].argmax()
+        true_peak_value = true[i, true_peak_index]
+
+        true_actual_peak_index = true[i].argmax()
+        true_actual_peak_value = true[i, true_actual_peak_index]
+
+        error.append((pred_peak_value - true_peak_value) / true_actual_peak_value)
+
+    return np.array(error).mean()
+
+
 def metric(pred, true):
     mae = MAE(pred, true)
     mse = MSE(pred, true)
     rmse = RMSE(pred, true)
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
+    hvi = HVI(pred, true)
 
-    return mae, mse, rmse, mape, mspe
+    return mae, mse, rmse, mape, mspe, hvi

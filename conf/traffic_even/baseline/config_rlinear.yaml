@@ -42,13 +42,12 @@ params:
   #checkpoints: "Not needed for now?"
   embed: timeF
   random_seed: 12
-  fourier_transform: False
-  smooth: None # gaussian, ema, uniform
+  transform: None
   smooth_param: None
 
   # Forecasting task
-  seq_len: 336 # input sequence length
-  label_len: 48 # start token length
+  seq_len: 2000 # input sequence length
+  label_len: 100 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
@@ -73,7 +72,7 @@ params:
   data_path: univ1_pt1_even_1000.csv
 
 list:
-  pred_len: [ 12, 18, 24, 30 ]
+  pred_len: [ 96, 192, 336, 720 ]
 
 ###############################################   RLINEAR   ###############################################
 ---
@@ -89,7 +88,7 @@ params:
   rev: 1
 
 wandb:
-    project: RLinear-Traffic-Even-n-v1
+    project: RLinear-Traffic-Even-n-v2
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

@@ -1,16 +1,16 @@
 ---
 # Slurm config (optional) -- test if this dies anything or nor
-name: SLURM   # MUST BE "SLURM"
+name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: RLinear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: PatchTST-Job-Traffic-Even    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 1200  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 4000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -39,10 +39,9 @@ params:
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
-  #checkpoints: "Not needed for now?"
-  embed: timeF
+  #checkpoints: Not needed for now?
   random_seed: 12
-  transform: stft
+  fourier_transform: stft
 
   # Forecasting task
   seq_len: 336 # input sequence length
@@ -52,7 +51,7 @@ params:
   # optimization
   num_workers: 1 # data loader num workers
   batch_size: 128 # batch size of train input data
-  learning_rate: 0.005 # optimizer learning rate
+  learning_rate: 0.001 # optimizer learning rate
   des: test # exp description -- not necessary??
   loss: mse # loss function
   lradj: type3 # adjust learning rate
@@ -62,29 +61,59 @@ params:
   test_flop: 0
 
   # GPU
-  use_gpu: 1 # check
+  use_gpu: 1
   gpu: 0 # test whether this works?
-  use_multi_gpu: 0 # check
+  use_multi_gpu: 0
 
   # data
   data: Traffic_Even_N
   data_path: univ1_pt1_even_1000.csv
 
-###############################################   RLINEAR   ###############################################
+  list:
+    smooth_param: [ (10, 9) ]
+
+#####################################################################################################################
 ---
-# RLinear Experiment
-name: RLinear-Traffic-Even
+# Vanilla Transformer Experiment
+name: PatchTTST-Traffic-Even
 
 params:
-  model_id: RLinear
-  model: RLinear
-  channel: 1 # number of channels
+  # Basic
+  model_id: PatchTST
+  model: PatchTST
+
+  # Former specific
+  embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
+  enc_in: 1 # encoder input size
+  dec_in: 1 # decoder input size
+  c_out: 1 # output size
+  d_model: 512 # dimension of model
+  n_heads: 8 # num of heads
+  e_layers: 2 # num of encoder layers
+  d_layers: 1 # num of decoder layers
+  d_ff: 2048 # dimension of fcn
+  moving_avg: 25 # window size of moving average
+  factor: 3 # attn factor
+  distil: 1 # whether to use distilling in encoder, using this argument means not using distilling
+  dropout: 0.05 # dropout
+  embed: fixed # time features encoding, options:[timeF, fixed, learned]
+  activation: gelu # activation
+  output_attention: False # whether to output attention in encoder
+  do_predict: False # whether to predict unseen future data
+  fc_dropout: 0.05
+  head_dropout: 0.0
+  patch_len: 16
+  stride: 8
+  padding_patch: 'end'
+  revin: 1
+  affine: 0
+  subtract_last: 0
+  decomposition: 0
+  kernel_size: 25
   individual: 0
-  dropout: 0.05
-  rev: 1
 
 wandb:
-    project: RLinear-Even-stft-v1-test
+    project: PatchTST-stft-v1-test
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

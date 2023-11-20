@@ -41,14 +41,13 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
   random_seed: 12
-  fourier_transform: False
-  smooth: None # gaussian, ema, uniform
+  transform: None
   smooth_param: None
 
   # Forecasting task
-  seq_len: 336 # input sequence length
-  label_len: 48 # start token length
-  pred_len: 30 # prediction sequence length
+  seq_len: 2000 # input sequence length
+  label_len: 100 # start token length
+  # pred_len: 30 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -72,7 +71,7 @@ params:
   data_path: univ1_pt1_even_1000.csv
 
 list:
-  pred_len: [ 12, 18, 24, 30 ]
+  pred_len: [ 96, 192, 336, 720 ]
 
 
 #####################################################################################################################
@@ -109,7 +108,7 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: Non-Stationary-Traffic-Even-n-v1
+    project: Non-Stationary-Traffic-Even-n-v2
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

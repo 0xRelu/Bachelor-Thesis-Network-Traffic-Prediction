@@ -32,10 +32,10 @@ if __name__ == "__main__":
         'features': "M",
         'target': "bytes",
         'num_workers': 1,
-        'embed': 'timeF',
+        'embed': 'fixed',
         'random_seed': 12,
         'transform': 'stft',
-        'smooth_param': None
+        'smooth_param': '(20, 10)'
     }
 
     config = dotdict(cw_config)

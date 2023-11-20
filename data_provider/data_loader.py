@@ -315,9 +315,10 @@ class Dataset_Traffic_Even_n(Dataset):
         data = df_data.values  # date, bytes 
 
         if self.transform == 'stft':
+            seg_len, seg_overlap = tuple(ast.literal_eval(self.smooth_param))
             data_y = data.copy()
 
-            f, t, Zxx = stft(data.flatten(), nperseg=10, noverlap=9)  # we assume in the following that we t = list(range(len(data)) or it will not work as intended
+            self.stft_f, self.stft_time, Zxx = stft(data.flatten(), nperseg=seg_len, noverlap=seg_overlap)  # we assume in the following that we t = list(range(len(data)) or it will not work as intended
             data = Zxx.transpose()
             data = np.concatenate((data.real, data.imag), axis=1)
 
@@ -368,10 +369,16 @@ class Dataset_Traffic_Even_n(Dataset):
     def __getitem__(self, index):
         index = self.index[index]
 
-        s_begin = index
-        s_end = s_begin + self.seq_len
-        r_begin = s_end - self.label_len
-        r_end = r_begin + self.label_len + self.pred_len
+        if self.transform == 'stft':
+            s_begin = index
+            s_end = s_begin + self.seq_len
+            r_begin = int(self.stft_time[s_end] - self.label_len)
+            r_end = r_begin + self.label_len + self.pred_len
+        else:
+            s_begin = index
+            s_end = s_begin + self.seq_len
+            r_begin = s_end - self.label_len
+            r_end = r_begin + self.label_len + self.pred_len
 
         seq_x = self.data_x[s_begin:s_end]
         seq_y = self.data_y[r_begin:r_end]
