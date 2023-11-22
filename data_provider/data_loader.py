@@ -315,6 +315,15 @@ class Dataset_Traffic_Even_n(Dataset):
         data = df_data.values  # date, bytes 
 
         if self.transform == 'stft':
+            '''
+            1. Get params and copy data
+            2. Transform time series with no boundaries (-> not paading)
+            3. Get borders for new time series x and for copied time series y. Get them from x and "convert" it into index in time domain
+            4. Normalize y
+            5. Normalize x
+            6. Parse time stamps
+            7. Get Data_x, data_y, date_stamp_x and date_stamp_y
+            '''
             seg_len, seg_overlap = tuple(ast.literal_eval(self.smooth_param))
             data_y = data.copy()
 

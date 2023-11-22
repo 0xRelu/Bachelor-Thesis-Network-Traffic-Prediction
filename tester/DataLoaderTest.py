@@ -26,21 +26,21 @@ if __name__ == "__main__":
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
         'data_path': "univ1_pt1_even_1000.csv",  # univ1_pt1_even_336_48_12_1000.pkl
-        'seq_len': 2000,
+        'seq_len': 200,
         'label_len': 100,
         'pred_len': 96,
         'features': "M",
         'target': "bytes",
         'num_workers': 1,
         'embed': 'fixed',
-        'transform': 'gaussian',
-        'smooth_param': 2,
-        'stride': 100
+        'transform': 'stft',
+        'smooth_param': '(100, 90)',
+        'stride': 10
     }
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
