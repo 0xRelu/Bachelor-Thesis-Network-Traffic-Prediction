@@ -22,39 +22,47 @@ if __name__ == "__main__":
     print("Start")
 
     cw_config = {
-        'data': 'Traffic_Even_N',
+        'data': 'Traffic_Even_N2',
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
-        'data_path': "univ1_pt1_even_1000.csv",  # univ1_pt1_even_336_48_12_1000.pkl
-        'seq_len': 2000,
+        'data_path': "univ1_pt1_even3_test_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
+        'seq_len': 336,
         'label_len': 100,
         'pred_len': 96,
         'features': "M",
         'target': "bytes",
         'num_workers': 1,
         'embed': 'timeF',
-        'transform': 'stft',
-        'smooth_param': '(10, 9)',  # 12
-        'stride': 100
+        'transform': 'gaussian',
+        'smooth_param': 2,  # '(10, 9)'  # 12
+        'stride': 10
     }
 
     config = dotdict(cw_config)
+
+    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
+    print("Length: ", len(train_data))
+
+    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+        # plot_batches(batch_x[:20])
+        # sys.exit(0)
+        if i % 100 == 0:
+            print(f"\tTrain {i / len(train_loader)}")
 
     train_data, train_loader = data_provider(config, flag='val')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        batch_x = batch_x[:, :, :6] + batch_x[:, :, 6:]
-
-        plt.pcolormesh(2000, train_data.stft_f, np.abs(batch_x), vmin=0, vmax=amp, shading='gouraud')
-        plt.title('STFT Magnitude')
-        plt.ylabel('Frequency [Hz]')
-        plt.xlabel('Time [sec]')
-        sys.exit(0)
-
         if i % 100 == 0:
-            print(f"\tTest {i / len(train_loader)}")
+            print(f"\tVal {i / len(train_loader)}")
+
+    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
+    print("Length: ", len(train_data))
+
+    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+        if i % 100 == 0:
+            print(f"\tVal {i / len(train_loader)}")
 
     sys.exit(0)
     zero_counter_x = []

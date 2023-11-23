@@ -424,12 +424,16 @@ def split_by(tuples: list, percentages) -> list[dir]:
 
     splits = []
     current = []
+    current_len = 0
 
     for tuples in tuples:
         current.append(tuples)
-        if len(list(chain(*current))) >= segments[len(splits)]:
+        current_len += len(tuples)
+
+        if current_len >= segments[len(splits)]:
             splits.append(current)
             current = []
+            current_len = 0
             assert len(splits) <= len(segments)
 
     if len(current) != 0:
@@ -438,13 +442,18 @@ def split_by(tuples: list, percentages) -> list[dir]:
 
 
 if __name__ == "__main__":
-    seq = [[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1]
-           , [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
+
+    seq = [[(0, i) for i in range(3)], [(2, i) for i in range(2)], [(4, i) for i in range(3)],
+              [(5, i) for i in range(2)], [(6, i) for i in range(1)], [(7, i) for i in range(4)], [(8, i) for i in range(3)], [(9, i) for i in range(3)], [(10, i) for i in range(1)]]
+    test = split_by(seq, [0.7, 0.2, 0.1])
+    print(test)
+
+    sys.exit(0)
+    seq = [[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0],
+           [0, 0], [0, 1]
+        , [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0],
+           [0, 0], [0, 0]]
 
     test = _split_flow_n2(seq, 3)
     print(test)
-    sys.exit(0)
-    seq = [[(0, i) for i in range(3)], [(2, i) for i in range(2)], [(4, i) for i in range(3)],
-              [(5, i) for i in range(2)], [(6, i) for i in range(1)]]
-    test = split_by(seq, [0.7, 0.2, 0.1])
-    print(test)
+

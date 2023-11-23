@@ -468,7 +468,7 @@ class Dataset_Traffic_Even_n2(Dataset):
         with open(os.path.join(self.root_path, self.data_path), 'rb') as f:
             data_raw: list[list] = pickle.load(f)  # returns list[list]
 
-        print(f"Loaded {len(data_raw)} flows.")
+        print(f"[+] Loaded {len(data_raw)} flows.")
 
         indexes = []  # sequences
 
@@ -479,10 +479,10 @@ class Dataset_Traffic_Even_n2(Dataset):
             if len(data_raw[i]) < self.seq_len + self.pred_len:
                 continue
 
-            data_stamps.append(list(map(lambda x: x[0], data_raw[i])))
-            data_bytes_flow = np.array(list(map(lambda x: x[1], data_raw[i])))
+            data_stamps.append(np.array(list(map(lambda x: x[0], data_raw[i]))))
+            data_bytes_flow = np.array(list(map(lambda x: x[1], data_raw[i]))).reshape(-1, 1)
 
-            print(data_bytes_flow.shape)
+            # print(data_bytes_flow.shape)
 
             if self.transform == 'gaussian':
                 data_bytes_flow = gaussian_filter1d(data_bytes_flow.reshape(-1), sigma=self.smooth_param, mode="nearest").reshape(-1, 1)
@@ -498,16 +498,16 @@ class Dataset_Traffic_Even_n2(Dataset):
             indexes.append([[len(data), j] for j in range(len(data_bytes_flow) - self.seq_len - self.pred_len)])
             data.append(data_bytes_flow)
 
-        print(f"Found {sum([len(x) for x in data])} sequences in {len(data_raw)} flows.")
+        print(f"[+] Found {sum([len(x) for x in data])} sequences in {len(data_raw)} flows.")
         # data_stamps = np.array(data_stamps)
         # data = np.stack(data)
 
         assert len(data_stamps) == len(data)
 
-        splitted_index = split_by(indexes, [0.7, 0.2, 0.1])
+        splitted_index = split_by(indexes, [0.7, 0.1, 0.2])
         assert len(splitted_index) == 3
-        border1s = [min(splitted_index[i].key()) for i in range(len(splitted_index))]
-        border2s = [max(splitted_index[i].key()) + 1 for i in range(len(splitted_index))]  # +1 because we also want the content of the key
+        border1s = [splitted_index[i][0][0][0] for i in range(len(splitted_index))]
+        border2s = [splitted_index[i][-1][0][0] + 1 for i in range(len(splitted_index))]  # +1 because we also want the content of the key
         self.border1 = border1s[self.set_type]
         self.border2 = border2s[self.set_type]
 
@@ -520,7 +520,8 @@ class Dataset_Traffic_Even_n2(Dataset):
         self.data_y = data[self.border1: self.border2]
         self.data_stamp_x = data_stamps[self.border1: self.border2]
         self.data_stamp_y = data_stamps[self.border1: self.border2]
-        self.index = [(a[0] - indexes[self.border1][0], a[1]) for a in itertools.chain(*indexes[self.border1: self.border2])]
+        indexes = [(a[0] - indexes[self.border1][0][0], a[1]) for a in itertools.chain(*indexes[self.border1: self.border2])]
+        self.index = [x for i, x in enumerate(indexes) if i % self.stride == 0]
 
     def __getitem__(self, index):
         index = self.index[index]
@@ -530,10 +531,13 @@ class Dataset_Traffic_Even_n2(Dataset):
         r_begin = s_end - self.label_len
         r_end = r_begin + self.label_len + self.pred_len
 
-        seq_x = self.data_x[0][s_begin:s_end]
-        seq_y = self.data_y[0][r_begin:r_end]
-        seq_x_mark = self.data_stamp_x[0][s_begin:s_end]
-        seq_y_mark = self.data_stamp_y[0][r_begin:r_end]
+        seq_x = self.data_x[index[0]][s_begin:s_end]
+        seq_y = self.data_y[index[0]][r_begin:r_end]
+        seq_x_mark = self.data_stamp_x[index[0]][s_begin:s_end]
+        seq_y_mark = self.data_stamp_y[index[0]][r_begin:r_end]
+
+        if seq_x.shape != (336, 1) or seq_y.shape != (196, 1) or seq_x_mark.shape != (336, 8) or seq_y_mark.shape != (196, 8):
+            print("Why")
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 

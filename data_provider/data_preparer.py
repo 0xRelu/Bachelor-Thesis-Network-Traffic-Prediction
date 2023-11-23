@@ -254,7 +254,7 @@ class DatatransformerEvenSimple2(DataTransformerBase):
 
         print(f"[+] Finally found {len(res_data_flows)} | Splitted Flow Length Mean {mean([len(x) for x in res_data_flows])} | process id {flow_id} | Loading timestamps....")
 
-        for i in range(len(data_flows)):
+        for i in range(len(res_data_flows)):
             res_data_flows[i] = list(map(mapping, res_data_flows[i]))
 
         print(f"[++] Finished process with id {flow_id}")
