@@ -3,6 +3,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from torch import amp
 
 from data_provider.data_factory import data_provider
 from utils.metrics import MSE
@@ -26,49 +27,31 @@ if __name__ == "__main__":
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
         'data_path': "univ1_pt1_even_1000.csv",  # univ1_pt1_even_336_48_12_1000.pkl
-        'seq_len': 200,
+        'seq_len': 2000,
         'label_len': 100,
         'pred_len': 96,
         'features': "M",
         'target': "bytes",
         'num_workers': 1,
-        'embed': 'fixed',
+        'embed': 'timeF',
         'transform': 'stft',
-        'smooth_param': '(100, 90)',
-        'stride': 10
+        'smooth_param': '(10, 9)',  # 12
+        'stride': 100
     }
 
     config = dotdict(cw_config)
-
-    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
-    print("Length: ", len(train_data))
-
-    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        # print(batch_x.detach().numpy()[2].reshape(-1).tolist())
-        # plot_batches(batch_x.detach().numpy()[2:3])
-        #sys.exit(0)
-
-        if i % 100 == 0:
-            print(f"\tTest {i / len(train_loader)}")
-
-    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
-    print("Length: ", len(train_data))
-
-    for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        # print(batch_x.detach().numpy()[2].reshape(-1).tolist())
-        # plot_batches(batch_x.detach().numpy()[2:3])
-        # sys.exit(0)
-
-        if i % 100 == 0:
-            print(f"\tTest {i / len(train_loader)}")
 
     train_data, train_loader = data_provider(config, flag='val')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        # print(batch_x.detach().numpy()[2].reshape(-1).tolist())
-        # plot_batches(batch_x.detach().numpy()[2:3])
-        # sys.exit(0)
+        batch_x = batch_x[:, :, :6] + batch_x[:, :, 6:]
+
+        plt.pcolormesh(2000, train_data.stft_f, np.abs(batch_x), vmin=0, vmax=amp, shading='gouraud')
+        plt.title('STFT Magnitude')
+        plt.ylabel('Frequency [Hz]')
+        plt.xlabel('Time [sec]')
+        sys.exit(0)
 
         if i % 100 == 0:
             print(f"\tTest {i / len(train_loader)}")

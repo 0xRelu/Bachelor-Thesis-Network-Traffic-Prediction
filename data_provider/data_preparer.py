@@ -6,313 +6,19 @@ import math
 import multiprocessing
 import os
 import pickle
-import sys
-import statsmodels.api as sm
+
 import datetime
-import matplotlib.pyplot as plt
+import random
+import sys
+from statistics import mean
+
+import numpy
 import numpy as np
 from numpy import ndarray
-from scapy.layers.inet import TCP, UDP, IP, ICMP
-from scapy.packet import Packet
-from scapy.plist import PacketList
-from scapy.utils import rdpcap
 
-from utils.scaler import StandardScalerNp, LogScalerNp, RobustScalerNp, MinMaxScalerNp
-
-
-def _split_flows_(packets: PacketList, max_flows: int) -> list:
-    data_flows = {}
-
-    counter = 0
-
-    for packet in packets:
-        counter += 1
-
-        if IP not in packet or (UDP not in packet[IP] and TCP not in packet[IP]):
-            continue
-
-        flow_id_1 = packet[IP].src + "|" + packet[IP].dst
-        flow_id_2 = packet[IP].dst + "|" + packet[IP].src
-
-        flow_id = flow_id_1
-
-        if flow_id_1 not in data_flows \
-                and flow_id_2 not in data_flows \
-                and len(data_flows) >= max_flows > 0:
-            continue
-
-        # add new flow
-        if flow_id_1 not in data_flows and flow_id_2 not in data_flows:
-            data_flows[flow_id_1] = []
-            if len(data_flows) % 10 == 0:
-                print(f"[+] \t Added new flow: {len(data_flows)}")
-
-        if flow_id_2 in data_flows:
-            flow_id = flow_id_2
-
-        packet_time = float(packet.time)
-        size = len(packet)
-
-        # add new entry to flow
-        data_flows.get(flow_id).append(
-            [packet_time, size, 0 if flow_id_1 is flow_id else 1, hot_embed_protocol(packet)])
-
-        if counter % 5000 == 0:
-            print(f"[+] Packets loaded: {counter / len(packets)}")
-
-    return [np.array(flow) for flow in data_flows.values()]
-
-
-def hot_embed_protocol(packet: Packet) -> int:
-    if IP not in packet:
-        raise IndexError("IP has to be in packet.")
-
-    if TCP in packet[IP]:
-        return 0
-
-    if UDP in packet[IP]:
-        return 1
-
-    raise IndexError(f"Protocol not defined {packet.summary()}")
-
-
-def split_list(input_list, num_parts):
-    avg = len(input_list) / float(num_parts)
-    out = []
-    last = 0.0
-
-    while last < len(input_list):
-        out.append(input_list[int(last):int(last + avg)])
-        last += avg
-
-    return out
-
-
-def parse_pcap_to_list(paths: list, save_path: str):
-    print(f"[+] Loading packets from pcap file with location: {paths} ...")
-
-    counter = 0
-
-    for i in range(len(paths)):
-        packetList = rdpcap(paths[i])
-        ndata_flows = _split_flows_(packetList, -1)
-        counter += len(ndata_flows)
-        packetList = None
-
-        if i > 0:
-            with open(save_path, 'rb') as f:
-                data_flows = pickle.load(f)
-            data_flows.extend(ndata_flows)
-        else:
-            data_flows = ndata_flows
-
-        with open(save_path, 'wb') as f:
-            pickle.dump(data_flows, f)
-
-        data_flows = None
-        print(f"[x] Finished {paths[i]}. Found {counter} flows total. Start loading next...")
-
-    print(f"[+] Wrote {counter} flows successfully in file with path {save_path}")
-
-
-def _list_milliseconds_(data_flow: np.ndarray, aggregation_time: int = 1000) -> list:
-    start_time = int(data_flow[0][0] * aggregation_time)
-    end_time = int(data_flow[-1][0] * aggregation_time) + 1
-    flow = [[time / aggregation_time, []] for time in range(start_time, end_time + 1)]
-
-    for packet in data_flow:
-        packet_time = int(packet[0] * aggregation_time)
-        flow[packet_time - start_time][1].append(packet)
-
-    return flow
-
-
-def _list_milliseconds_only_sizes_(data_flow: ndarray, aggregation_time: int = 1000) -> np.ndarray:
-    start_time = int(data_flow[0][0] * aggregation_time)  # assumes packets are ordered
-    end_time = int(data_flow[-1][0] * aggregation_time) + 1
-    flow = [[time / aggregation_time, 0] for time in range(start_time, end_time + 1)]
-
-    for packet in data_flow:
-        packet_time = int(packet[0] * aggregation_time)
-        flow[packet_time - start_time][1] += packet[1]
-
-    return np.array(flow)
-
-
-def _list_milliseconds_only_sizes_not_np(data_flow: ndarray, aggregation_time: int = 1000) -> list:
-    start_time = int(data_flow[0][0] * aggregation_time)  # assumes packets are ordered
-    end_time = int(data_flow[-1][0] * aggregation_time) + 1
-    flow = [[time / aggregation_time, 0] for time in range(start_time, end_time + 1)]
-
-    for packet in data_flow:
-        packet_time = int(packet[0] * aggregation_time)
-        flow[packet_time - start_time][1] += packet[1]
-
-    return flow
-
-
-def _split_flow(split_flow: list[list], x: int, aggregation_time: int):
-    y = 50
-
-    current = []
-
-    filtered_list = []
-    zero_counter = 0
-    non_zero_counter = 0
-
-    # If 0 -> zero_counter + 1; current append 0
-    # If 0 and zero_counter > x -> zero_counter += 1
-
-    # If Z -> zero_counter = 0; non_zero_counter += 1; current append Z
-    # If Z and zero_counter > x and non_zero_counter >= y -> filtered append Zeros and current; zero_counter = 0, non_zero_counter = 0
-    # If Z; zero_counter > x; non_zero_counter < y -> zero_counter = 0; non_zero_counter = 0
-
-    for value in split_flow:
-        if value[1] == 0:
-            zero_counter += 1
-        else:
-            if zero_counter > x and non_zero_counter > y:
-                minZ = min(x, max(zero_counter - x, 0))
-                filtered_list.extend([[time / aggregation_time, 0] for time in
-                                      range(int((value[0] * aggregation_time)) - minZ,
-                                            int((value[0] * aggregation_time)))]
-                                     + current + [value])
-                current = []
-                non_zero_counter = -1
-                zero_counter = 0
-                continue
-
-            if zero_counter > x and non_zero_counter <= y:
-                current = []
-                non_zero_counter = -1
-
-            zero_counter = 0
-            non_zero_counter += 1
-
-        if zero_counter <= x:
-            current.append(value)
-
-    return filtered_list
-
-def _split_flow_n(split_flow: list[list], split_at: int, min_length: int, aggregation_time: int):
-    current = []
-
-    filtered_list = []
-    zero_counter = 0
-
-    # If 0 -> zero_counter + 1; current append 0
-    # If 0 and zero_counter > x -> zero_counter += 1
-
-    # If Z -> zero_counter = 0; non_zero_counter += 1; current append Z
-    # If Z and zero_counter > x and non_zero_counter >= y -> filtered append Zeros and current; zero_counter = 0, non_zero_counter = 0
-    # If Z; zero_counter > x; non_zero_counter < y -> zero_counter = 0; non_zero_counter = 0
-
-    for value in split_flow:
-        if value[1] == 0:
-            zero_counter += 1
-        else:
-            if zero_counter > split_at and len(current) > (min_length + split_at):
-                minZ = min(split_at, max(zero_counter - split_at, 0))
-                filtered_list.extend(current)
-                current = [[time / aggregation_time, 0] for time in range(int(value[0] * aggregation_time) - minZ, int(value[0] * aggregation_time))]
-            elif zero_counter > split_at:
-                current = [[time / aggregation_time, 0] for time in range(int(value[0] * aggregation_time) - split_at, int(value[0] * aggregation_time))]
-
-            zero_counter = 0
-
-        if zero_counter <= split_at:
-            current.append(value)
-
-    if len(filtered_list) > 2:
-        before = [[time / aggregation_time, 0] for time in range(int(filtered_list[0][0] * aggregation_time) - (split_at // 2), int(filtered_list[0][0] * aggregation_time))]
-        after = [[time / aggregation_time, 0] for time in range(int(filtered_list[-1][0] * aggregation_time) + 1, int(filtered_list[-1][0] * aggregation_time) + (split_at // 2))]
-        filtered_list = before + filtered_list + current + after if len(current) > min_length + split_at else before + filtered_list + after
-
-    return filtered_list
-
-def _split_flow_list(split_flow: list, x: int, aggregation_time: int):
-    splits = []
-    current_split = []
-    zero_counter = 0
-
-    counter = 0
-
-    def before_after(start, end):
-        return [[time / aggregation_time, []] for time in range(start - int(x / 2), start)], \
-            [[time / aggregation_time, []] for time in range(end, end + int(x / 2))]
-
-    for value in split_flow:
-        if len(value[1]) == 0 and len(current_split) == 0:
-            counter += 1
-            continue
-
-        if len(value[1]) == 0:
-            current_split.append(value)
-            zero_counter += 1
-            if zero_counter > x:
-                before, after = before_after(int(current_split[0][0] * aggregation_time),
-                                             int(current_split[-1][0] * aggregation_time))
-                splits.append(before + current_split + after)
-                current_split = []
-                zero_counter = 0
-        else:
-            current_split.append(value)
-            zero_counter = 0
-
-    if len(current_split) > 0:
-        before, after = before_after(int(current_split[0][0] * aggregation_time),
-                                     int(current_split[-1][0] * aggregation_time))
-        splits.append(before + current_split + after)
-
-    return splits
-
-
-def calculate_hurst_exponent(data: np.ndarray):
-    if len(data) < 10:
-        return -1, -1, [[], []]
-
-    segment_sizes = list(map(lambda x: int(10 ** x), np.arange(math.log10(10), math.log10(len(data)), 0.25))) + [
-        len(data)]
-
-    RS = []
-
-    def _calc_rs(chunk):
-        R = np.ptp(chunk)
-        S = np.std(chunk)
-
-        if R == 0 or S == 0:
-            return 0
-
-        return R / S
-
-    for segment_size in segment_sizes:
-        chunked_data = [data[i:i + segment_size] for i in range(0, len(data), segment_size)]
-        w_rs = np.mean([_calc_rs(chunk) for chunk in chunked_data])
-        RS.append(w_rs)
-
-    A = np.vstack([np.log10(segment_sizes), np.ones(len(RS))]).T
-    H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
-
-    return H, c, [segment_sizes, RS]
-
-
-def calculate_autocorrelation(data: np.ndarray):
-    segment_sizes = range(0, len(data), len(data) // 4)
-    autocorrelation = []
-
-    for lag in segment_sizes:
-        data_shifted = np.roll(data, lag)
-
-        centered_x = data - np.sum(data, axis=0, keepdims=True) / len(data)
-        centered_y = data_shifted - np.sum(data_shifted, axis=0, keepdims=True) / len(data_shifted)
-        cov_xy = 1. / (len(data) - 1) * np.dot(centered_x.T, centered_y)
-        var_x = 1. / (len(data) - 1) * np.sum(centered_x ** 2, axis=0)
-        var_y = 1. / (len(data_shifted) - 1) * np.sum(centered_y ** 2, axis=0)
-        corrcoef_xy = cov_xy / np.sqrt(var_x[:, None] * var_y[None, :])
-
-        autocorrelation.append(corrcoef_xy)
-
-    return [segment_sizes, autocorrelation]
+from utils.data_perperation import split_list, _list_milliseconds_only_sizes_, _list_milliseconds_only_sizes_not_np, \
+    _split_flow_n, _list_milliseconds_, calculate_hurst_exponent, parse_pcap_to_list, parse_pcap_to_list_n, \
+    _split_flow_n2, create_test_from_full
 
 
 class DataTransformerBase:
@@ -432,7 +138,7 @@ class DatatransformerEven(DataTransformerBase):
 
 
 class DatatransformerEvenSimple(DataTransformerBase):
-    def __init__(self, file_path: str, min_length: int = 100, aggregation_time: int = 1000, processes: int=4):
+    def __init__(self, file_path: str, min_length: int = 100, aggregation_time: int = 1000, processes: int = 4):
         self.aggregation_time = aggregation_time
         self.processes = processes
         self.min_length = min_length
@@ -442,6 +148,7 @@ class DatatransformerEvenSimple(DataTransformerBase):
     def _get_data(self, data_flows: list[ndarray]):
         print("[+] Starting data preparation...")
 
+        random.shuffle(data_flows)  # tries to balance load
         data_flows = split_list(data_flows, self.processes)
 
         print(f"[+] Starting {self.processes} processes containing: {[len(s) for s in data_flows]}")
@@ -460,7 +167,8 @@ class DatatransformerEvenSimple(DataTransformerBase):
         print(f"[+] Found sequences: {len(flow_seq)} in {sum(len(x) for x in data_flows)} flows sequences")
 
         print("[+] Parse timestamp...")
-        flow_seq = list(map(lambda x: [datetime.datetime.fromtimestamp(x[0]).strftime('%Y-%m-%d %H:%M:%S.%f'), x[1]], flow_seq))
+        flow_seq = list(
+            map(lambda x: [datetime.datetime.fromtimestamp(x[0]).strftime('%Y-%m-%d %H:%M:%S.%f'), x[1]], flow_seq))
 
         flow_seq = [['date', 'bytes']] + flow_seq
         return flow_seq
@@ -479,13 +187,77 @@ class DatatransformerEvenSimple(DataTransformerBase):
                 skipped_counter += 1
                 continue
 
-            flow = _split_flow_n(split_flow=flow, split_at=min_length, min_length=8 * min_length, aggregation_time=aggregation_time)  # cleanup
+            flow = _split_flow_n(split_flow=flow, split_at=min_length, min_length=8 * min_length,
+                                 aggregation_time=aggregation_time)  # cleanup
             res_data_flows.extend(flow)
 
             if counter % 10 == 0:
-                print(f"[+] Found {len(res_data_flows)} in {counter} / {len(data_flows)} | Skipped: {skipped_counter} | process id {flow_id}")
+                print(
+                    f"[+] Found {len(res_data_flows)} in {counter / len(data_flows)} % | Skipped: {skipped_counter} | process id {flow_id}")
             counter += 1
 
+        return res_data_flows
+
+
+class DatatransformerEvenSimple2(DataTransformerBase):
+    def __init__(self, file_path: str, min_length: int = 100, aggregation_time: int = 1000, processes: int = 4):
+        self.aggregation_time = aggregation_time
+        self.processes = processes
+        self.min_length = min_length
+
+        super().__init__(file_path)
+
+    def _get_data(self, data_flows: list[ndarray]):
+        print("[+] Starting data preparation...")
+
+        # random.shuffle(data_flows)  # tries to balance load
+        data_flows = split_list(data_flows, self.processes)
+
+        print(f"[+] Starting {self.processes} processes containing: {[len(s) for s in data_flows]}")
+
+        params = [(data_flows[flow], self.aggregation_time, flow, self.min_length) for flow in range(len(data_flows))]
+
+        process_pool = multiprocessing.Pool(processes=self.processes)
+        results = process_pool.starmap(self.__create_sequences__, params)
+        process_pool.close()
+        process_pool.join()
+
+        flow_seq = []
+        for res in results:
+            flow_seq += res
+
+        print(f"[+] Found sequences: {len(flow_seq)} in {sum(len(x) for x in data_flows)} flows sequences")
+        return flow_seq
+
+    @staticmethod
+    def __create_sequences__(data_flows: list[np.ndarray], aggregation_time: int, flow_id: int, min_length: int):
+        res_data_flows = []
+        counter = 0
+
+        def mapping(x):
+            time = datetime.datetime.fromtimestamp(x[0])
+            return [
+                [time.month, time.day, time.weekday(), time.hour, time.minute, time.second, time.microsecond // 1000,
+                 time.microsecond % 1000],
+                x[1:]]
+
+        for flow in data_flows:
+            flow = _list_milliseconds_only_sizes_not_np(data_flow=flow,
+                                                        aggregation_time=aggregation_time)  # returns [time in unix, bytes]
+            flow = _split_flow_n2(split_flow=flow, split_at=min_length)
+            # flow = list(map(mapping, flow))
+            res_data_flows.extend(flow)
+
+            if counter % 1000 == 0:
+                print(f"[+] Found {len(res_data_flows)} in {counter / len(data_flows)} % | Splitted Flow Length Mean {mean([len(x) for x in res_data_flows])} | process id {flow_id}")
+            counter += 1
+
+        print(f"[+] Finally found {len(res_data_flows)} | Splitted Flow Length Mean {mean([len(x) for x in res_data_flows])} | process id {flow_id} | Loading timestamps....")
+
+        for i in range(len(data_flows)):
+            res_data_flows[i] = list(map(mapping, res_data_flows[i]))
+
+        print(f"[++] Finished process with id {flow_id}")
         return res_data_flows
 
 
@@ -602,7 +374,7 @@ def _analyse_flows(file_path: str, save_path: str):
             with open(save_path, 'rb') as f:
                 data = pickle.load(f)
 
-            print([round(s, 3) for s in data["hurst"]])
+            print(mean([t[1] for t in data['v_not_zero']]))
 
             return
         except Exception:
@@ -620,28 +392,60 @@ def _analyse_flows(file_path: str, save_path: str):
 
     # packet count per flow
     p_count = [len(x) for x in data]
-    print(f"Packets per flow: {p_count}")
+    print(f"Packets per flow: mean: {mean(p_count)}")
 
     # bytes per flow
     b_count = []
     for flow in data:
         b_count.append(sum([x[1] for x in flow]))
-    print(f"Bytes per flow: {b_count}")
+    print(f"Bytes per flow: {mean(b_count)}")
 
     # --- flow aggregated data
+    start_points = []
+    end_points = []
     agg_len = []
     v_not_zero = []
     corr = []
     hurst = []
 
+    skipped = 0
+
     for flow in data:
-        flow_ag = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=1000)
+        if len(flow) < 2:
+            skipped += 1
+            continue
+
+        start_time = datetime.datetime.fromtimestamp(flow[0][0])
+        end_time = datetime.datetime.fromtimestamp(flow[-1][0])
+        duration = end_time - start_time
+
+        duration = int(duration.total_seconds() * 1000)
+
+        if duration == 0:
+            skipped += 1
+            continue
 
         # aggregated len per flow
-        agg_len.append(len(flow_ag))
+        if duration > 3000000:
+            start_counter = 0
+            end_counter = 0
+            for i in range(len(flow) - 3):
+                if flow[i][-1] == 'FA':
+                    end_counter += 1
+
+                if flow[i][-1] == 'S' and \
+                        flow[i + 1][-1] == 'SA' and \
+                        flow[i + 2][-1] == 'A':
+                    start_counter += 1
+
+            start_points.append(start_counter)
+            end_points.append(end_counter)
+        agg_len.append(duration)
+
+        unique_filled_milliseconds = set(map(lambda x: int(x[0] * 1000), flow))
 
         # Non zero values per flow
-        v_not_zero.append((len(np.nonzero(flow_ag[:, 1])[0]), len(np.nonzero(flow_ag[:, 1])[0]) / len(flow_ag[:, 1])))
+        v_not_zero.append((len(unique_filled_milliseconds), len(unique_filled_milliseconds) / duration))
 
         # Autocorrelation
         # [window_sizes_corr, corr_f] = calculate_autocorrelation(flow_ag[:, 1])
@@ -649,15 +453,20 @@ def _analyse_flows(file_path: str, save_path: str):
         # corr.append(corr_f)
 
         # Hurst Exponent
-        H, c, [window_sizes_h, RS] = calculate_hurst_exponent(flow_ag[:, 1])
-        hurst.append(H)
+        # H, c, [window_sizes_h, RS] = calculate_hurst_exponent(flow_ag[:, 1])
+        # hurst.append(H)
 
-        if len(v_not_zero) % 100 == 0:
+        if len(v_not_zero) % 10000 == 0:
             print(f"[+] Finished {len(v_not_zero)} / {len(data)} : {len(v_not_zero) / len(data)}")
 
-    print(f"Non zero values per flow: {v_not_zero}")
+    print(f"Skipped about: {skipped}")
+    print(f"Start counter mean: {mean(start_points)} | End Counter mean: {mean(end_points)}")
+    print(f"Non zero values per flow:  mean: {mean([t[1] for t in v_not_zero])}")
+
+    agg_len = sorted(agg_len)
+    print(f"Time in milliseconds {agg_len[:5]}, {agg_len[-5:]}| (mean):{mean(agg_len)}")
     # print(f"Correlation per flow: {corr}")
-    print(f"Hurst per flow: {hurst}")
+    # print(f"Hurst per flow: {hurst}")
 
     data = {
         "f_count": f_count,
@@ -665,7 +474,7 @@ def _analyse_flows(file_path: str, save_path: str):
         "b_count": b_count,
         "agg_len": agg_len,
         "v_not_zero": v_not_zero,
-        "hurst": hurst
+        # "hurst": hurst
     }
 
     with open(save_path, 'wb') as f:
@@ -679,11 +488,11 @@ def __create_split_flow_files__():
     path = [path + str(i) for i in range(1, 21)]
     path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test'  #
 
-    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt_n.pkl'
     save_path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'
 
-    parse_pcap_to_list(path, save_path)
-    # parse_pcap_to_list(path_test, save_path_test)
+    parse_pcap_to_list_n(path, save_path)
+    # parse_pcap_to_list_n([path_test], save_path_test)
 
 
 def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
@@ -700,9 +509,20 @@ def __save_even__(pred_lens: list, load_path: str, aggr_time: list):
     print("<<<<<<<<<<<<<<<< Done Even >>>>>>>>>>>>>>>>")
 
 
+def __save_even_new2__(load_path: str, save_path: str, aggr_time: list):
+    for j in aggr_time:
+        save_path = save_path + f"_{j}.pkl"
+        data_transformer = DatatransformerEvenSimple2(load_path, min_length=500, aggregation_time=j, processes=10)
+
+        data_transformer.save_python_object(save_path)
+        print(f"[x] Finished {j} and saved it in {save_path}")
+
+    print("<<<<<<<<<<<<<<<< Done Even >>>>>>>>>>>>>>>>")
+
+
 def __save_even_new__(load_path: str, aggr_time: list):
     for j in aggr_time:
-        save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_test\\univ1_pt1_even_{j}.pkl'
+        save_path = f'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even2_{j}.pkl'
         data_transformer = DatatransformerEvenSimple(load_path, min_length=336, aggregation_time=j, processes=10)
 
         data_transformer.save_csv(save_path)
@@ -727,15 +547,24 @@ def __save_single__(pred_lens: list, load_path: str, aggr_time: list):
 
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
-    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt.pkl'  # _test
-    save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full_v1.pkl'  # _test
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt_n.pkl'  # _test
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even3'
+
+    test_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt_n_test.pkl'
+    test_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even3_test'
+
+    save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_v2.pkl'  # _test
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
+
+    # __create_split_flow_files__()
+    # create_test_from_full(path, test_path)
 
     # _analyse_flows(path, save_analysis)
     # __create_split_flow_files__()  # only if packets got changed
 
-    __save_even_new__(path, aggregation_time)
+    # __save_even_new__(path, aggregation_time)
+    __save_even_new2__(test_path, test_save_path, aggregation_time)
     # __save_even__(preds, path, aggregation_time)
     # __save_single__(preds, path, aggregation_time)
 

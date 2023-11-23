@@ -1,8 +1,9 @@
 import numpy as np
 import torch
+from sklearn.preprocessing import StandardScaler
 
 
-class StandardScaler:
+class StandardScalerT:
 
     def __init__(self, mean=None, std=None, zero_element=None, epsilon=1e-7):
         """Standard Scaler.
@@ -54,6 +55,35 @@ class StandardScalerNp:
 
     def inverse_transform(self, values):
         return (values * (self.std + self.epsilon)) + self.mean
+
+
+class StandardScalerList:
+    def __init__(self):
+        self.scaler = StandardScaler()
+
+    def fit(self, values: list[np.ndarray]):
+        values = np.concatenate(values, axis=0)
+        self.scaler.fit(values)
+
+    def transform(self, values: list[np.ndarray]):
+        nValues = []
+
+        for val in values:
+            nValues.append(self.scaler.transform(val))
+
+        return nValues
+
+    def fit_transform(self, values: list[np.ndarray]):
+        self.fit(values)
+        return self.transform(values)
+
+    def inverse_transform(self, values):
+        nValues = []
+
+        for val in values:
+            nValues.append(self.scaler.inverse_transform(val))
+
+        return nValues
 
 
 class MinMaxScalerNp:

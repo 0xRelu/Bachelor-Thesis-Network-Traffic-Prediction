@@ -18,7 +18,8 @@ from scipy.signal import stft
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 
-from utils.scaler import StandardScalerNp
+from utils.data_perperation import split_by
+from utils.scaler import StandardScalerNp, StandardScalerList
 from utils.timefeatures import time_features
 import warnings
 
@@ -329,6 +330,9 @@ class Dataset_Traffic_Even_n(Dataset):
 
             # stft
             self.stft_f, self.stft_time, Zxx = stft(data.flatten(), nperseg=seg_len, noverlap=seg_overlap, boundary=None)
+            # we get [x, 51] remember we have a segment length of 100! So we did expect [x, 100]
+            # so we split in real an imag -> and get [x, 102]
+
             data = Zxx.transpose()
             data = np.concatenate((data.real, data.imag), axis=1)
 
@@ -426,7 +430,7 @@ class Dataset_Traffic_Even_n(Dataset):
         return self.scaler.inverse_transform(data)
 
 
-class Dataset_Traffic_Even_stft(Dataset):
+class Dataset_Traffic_Even_n2(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='univ1_pt1_even.csv',
                  target='OT', scale=True, timeenc=0, freq='h', stride=100, transform=None, smooth_param=None):
@@ -459,99 +463,77 @@ class Dataset_Traffic_Even_stft(Dataset):
         self.__read_data__()
 
     def __read_data__(self):
-        self.scaler = StandardScaler()
-        df_raw = pd.read_csv(os.path.join(self.root_path,
-                                          self.data_path))
+        self.scaler = StandardScalerList()
 
-        '''
-        df_raw.columns: ['date', ...(other features), target feature]
-        '''
-        cols = list(df_raw.columns)
-        cols.remove(self.target)
-        cols.remove('date')
-        df_raw = df_raw[['date'] + cols + [self.target]]
+        with open(os.path.join(self.root_path, self.data_path), 'rb') as f:
+            data_raw: list[list] = pickle.load(f)  # returns list[list]
 
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        num_vali = len(df_raw) - num_train - num_test
-        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
-        border2s = [num_train, num_train + num_vali, len(df_raw)]
+        print(f"Loaded {len(data_raw)} flows.")
+
+        indexes = []  # sequences
+
+        data_stamps = []
+        data = []
+
+        for i in range(len(data_raw)):
+            if len(data_raw[i]) < self.seq_len + self.pred_len:
+                continue
+
+            data_stamps.append(list(map(lambda x: x[0], data_raw[i])))
+            data_bytes_flow = np.array(list(map(lambda x: x[1], data_raw[i])))
+
+            print(data_bytes_flow.shape)
+
+            if self.transform == 'gaussian':
+                data_bytes_flow = gaussian_filter1d(data_bytes_flow.reshape(-1), sigma=self.smooth_param, mode="nearest").reshape(-1, 1)
+
+            if self.transform == 'uniform':
+                kernel = np.array([1 / self.smooth_param for _ in range(-((self.smooth_param - 1) // 2),
+                                                                        ((self.smooth_param - 1) // 2))])
+                data_bytes_flow = convolve(data_bytes_flow.reshape(-1), weights=kernel, mode="constant", cval=0.0).reshape(-1, 1)
+
+            if self.transform == 'ema':
+                data_bytes_flow = ema_smoothing(data_bytes_flow.reshape(-1), a=self.smooth_param).reshape(-1, 1)
+
+            indexes.append([[len(data), j] for j in range(len(data_bytes_flow) - self.seq_len - self.pred_len)])
+            data.append(data_bytes_flow)
+
+        print(f"Found {sum([len(x) for x in data])} sequences in {len(data_raw)} flows.")
+        # data_stamps = np.array(data_stamps)
+        # data = np.stack(data)
+
+        assert len(data_stamps) == len(data)
+
+        splitted_index = split_by(indexes, [0.7, 0.2, 0.1])
+        assert len(splitted_index) == 3
+        border1s = [min(splitted_index[i].key()) for i in range(len(splitted_index))]
+        border2s = [max(splitted_index[i].key()) + 1 for i in range(len(splitted_index))]  # +1 because we also want the content of the key
         self.border1 = border1s[self.set_type]
         self.border2 = border2s[self.set_type]
-
-        if self.features == 'M' or self.features == 'MS':
-            cols_data = df_raw.columns[1:]
-            df_data = df_raw[cols_data]
-        elif self.features == 'S':
-            df_data = df_raw[[self.target]]
-
-        data = df_data.values  # date, bytes
-
-        seg_len, seg_overlap = tuple(ast.literal_eval(self.smooth_param))
-        data_y = data.copy()
-
-        # stft
-        self.stft_f, self.stft_time, Zxx = stft(data.flatten(), nperseg=seg_len, noverlap=seg_overlap)
-        data = Zxx.transpose()
-        data = np.concatenate((data.real, data.imag), axis=1)
-
-        # data y
-        if data.shape[0] > data_y.shape[0]:
-            data_y = np.pad(data_y.flatten(), (0, data.shape[0] - data_y.shape[0]), mode='constant',
-                            constant_values=0).reshape(-1, 1)
-
-        train_data_y = data_y[border1s[0]:border2s[0]]
-        self.scaler.fit(train_data_y)
-        data_y = self.scaler.transform(data_y)
 
         if self.scale:
             train_data = data[border1s[0]:border2s[0]]
             self.scaler.fit(train_data)
             data = self.scaler.transform(data)
 
-        df_stamp = df_raw[['date']][self.border1:self.border2]
-        df_stamp['date'] = pd.to_datetime(df_stamp.date)
-        if self.timeenc == 0:
-            df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
-            df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
-            df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
-            df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
-            df_stamp['minute'] = df_stamp.date.apply(lambda row: row.minute, 1)
-            df_stamp['second'] = df_stamp.date.apply(lambda row: row.second, 1)
-            df_stamp['millisecond'] = df_stamp.date.apply(lambda row: row.microsecond // 1000, 1)
-            df_stamp['microsecond'] = df_stamp.date.apply(lambda row: row.microsecond % 1000, 1)
-            data_stamp = df_stamp.drop(['date'], axis=1).values
-        elif self.timeenc == 1:
-            data_stamp = time_features(pd.to_datetime(df_stamp['date'].values), freq=self.freq)
-            data_stamp = data_stamp.transpose(1, 0)
-
-        self.data_x = data[self.border1Stft:self.border2Stft]
-        self.data_y = data[self.border1:self.border2] if self.transform != 'stft' else data_y[self.border1:self.border2]
-
-        test = [i for i in self.stft_time.astype(int) if i < len(data_stamp)]
-
-        self.data_stamp_x = data_stamp if self.transform != 'stft' else data_stamp[test]
-        self.data_stamp_y = data_stamp
-        self.index = np.arange(0, len(self.data_x) - self.seq_len - self.pred_len + 1, self.stride)
+        self.data_x = data[self.border1: self.border2]
+        self.data_y = data[self.border1: self.border2]
+        self.data_stamp_x = data_stamps[self.border1: self.border2]
+        self.data_stamp_y = data_stamps[self.border1: self.border2]
+        self.index = [(a[0] - indexes[self.border1][0], a[1]) for a in itertools.chain(*indexes[self.border1: self.border2])]
 
     def __getitem__(self, index):
         index = self.index[index]
 
-        if self.transform == 'stft':
-            s_begin = index
-            s_end = s_begin + self.seq_len
-            r_begin = int(self.stft_time[s_end] - self.label_len)
-            r_end = r_begin + self.label_len + self.pred_len
-        else:
-            s_begin = index
-            s_end = s_begin + self.seq_len
-            r_begin = s_end - self.label_len
-            r_end = r_begin + self.label_len + self.pred_len
+        s_begin = index[1]
+        s_end = s_begin + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end = r_begin + self.label_len + self.pred_len
 
-        seq_x = self.data_x[s_begin:s_end]
-        seq_y = self.data_y[r_begin:r_end]
-        seq_x_mark = self.data_stamp_x[s_begin:s_end]
-        seq_y_mark = self.data_stamp_y[r_begin:r_end]
+        seq_x = self.data_x[0][s_begin:s_end]
+        seq_y = self.data_y[0][r_begin:r_end]
+        seq_x_mark = self.data_stamp_x[0][s_begin:s_end]
+        seq_y_mark = self.data_stamp_y[0][r_begin:r_end]
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
@@ -560,7 +542,6 @@ class Dataset_Traffic_Even_stft(Dataset):
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
-
 
 
 
