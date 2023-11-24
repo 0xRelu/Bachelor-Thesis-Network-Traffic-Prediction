@@ -47,8 +47,8 @@ class LtsfExperiment(experiment.AbstractIterativeExperiment):
 
         # log results as diagrams
         if n + 1 == cw_config['iterations']:
-            # self.__log_trues_preds__(cw_config, trues_preds_train, "train")
-            # self.__log_trues_preds__(cw_config, trues_preds_test, "test")
+            self.__log_trues_preds__(cw_config, trues_preds_train, "train")
+            self.__log_trues_preds__(cw_config, trues_preds_test, "test")
             # self.__log_trues_preds__(cw_config, trues_preds_vali, "vali")
 
             test_results_not_scaled, trues_preds_test_real = self.expMain.test(test_data=self.test_data,

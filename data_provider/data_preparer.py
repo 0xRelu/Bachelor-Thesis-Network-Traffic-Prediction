@@ -245,14 +245,15 @@ class DatatransformerEvenSimple2(DataTransformerBase):
             flow = _list_milliseconds_only_sizes_not_np(data_flow=flow,
                                                         aggregation_time=aggregation_time)  # returns [time in unix, bytes]
             flow = _split_flow_n2(split_flow=flow, split_at=min_length)
+            flow = list(filter(lambda x: len(x) > min_length * 2, flow))
             # flow = list(map(mapping, flow))
             res_data_flows.extend(flow)
 
             if counter % 1000 == 0:
-                print(f"[+] Found {len(res_data_flows)} in {counter / len(data_flows)} % | Splitted Flow Length Mean {mean([len(x) for x in res_data_flows])} | process id {flow_id}")
+                print(f"[+] Found {len(res_data_flows)} in {counter / len(data_flows)} % | Splitted Flow Length Mean {mean([0] + [len(x) for x in res_data_flows])} | process id {flow_id}")
             counter += 1
 
-        print(f"[+] Finally found {len(res_data_flows)} | Splitted Flow Length Mean {mean([len(x) for x in res_data_flows])} | process id {flow_id} | Loading timestamps....")
+        print(f"[+] Finally found {len(res_data_flows)} | Splitted Flow Length Mean {mean([0] + [len(x) for x in res_data_flows])} | process id {flow_id} | Loading timestamps....")
 
         for i in range(len(res_data_flows)):
             res_data_flows[i] = list(map(mapping, res_data_flows[i]))
@@ -558,7 +559,7 @@ if __name__ == "__main__":
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     # __create_split_flow_files__()
-    # create_test_from_full(path, test_path)
+    create_test_from_full(path, test_path, 2000, True)
 
     # _analyse_flows(path, save_analysis)
     # __create_split_flow_files__()  # only if packets got changed

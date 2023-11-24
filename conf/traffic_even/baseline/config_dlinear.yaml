@@ -69,8 +69,8 @@ params:
   use_multi_gpu: 0 # check
 
   # data
-  data: Traffic_Even_N
-  data_path: univ1_pt1_even_1000.csv
+  data: Traffic_Even_N2
+  data_path: univ1_pt1_even3_1000.pkl
 
 list:
   pred_len: [ 96, 192, 336, 720 ]

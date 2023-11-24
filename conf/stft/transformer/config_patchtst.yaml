@@ -64,10 +64,9 @@ params:
   use_multi_gpu: 0
 
   # data
-  data: Traffic_Even_N
-  data_path: univ1_pt1_even_1000.csv
-  transform: stft
-  stride: 100
+  data: Traffic_Even_Stft
+  data_path: univ1_pt1_even3_1000.pkl
+  transform: None
 
 list:
   smooth_param: [ '(10,9)', '(100, 90)', '(500, 450)',

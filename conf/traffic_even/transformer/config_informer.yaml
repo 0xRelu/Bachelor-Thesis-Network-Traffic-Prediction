@@ -45,8 +45,8 @@ params:
   smooth_param: None
 
   # Forecasting task
-  seq_len: 2000 # input sequence length
-  label_len: 100 # start token length
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
@@ -67,8 +67,8 @@ params:
   use_multi_gpu: 0
 
   # data
-  data: Traffic_Even_N
-  data_path: univ1_pt1_even_1000.csv
+  data: Traffic_Even_N2
+  data_path: univ1_pt1_even3_1000.pkl
 
 list:
   pred_len: [ 96, 192, 336, 720 ]
@@ -104,7 +104,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Informer-Traffic-Even-n-v2
+    project: Informer-Traffic-Even-n-v2-test
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

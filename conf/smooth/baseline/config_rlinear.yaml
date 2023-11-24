@@ -44,8 +44,8 @@ params:
   stride: 100
 
   # Forecasting task
-  seq_len: 2000 # input sequence length
-  label_len: 100 # start token length
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
@@ -66,8 +66,8 @@ params:
   use_multi_gpu: 0 # check
 
   # data
-  data: Traffic_Even_N
-  data_path: univ1_pt1_even2_1000.csv
+  data: Traffic_Even_N2
+  data_path: univ1_pt1_even3_1000.pkl
 
 list:
   transform: [ gaussian, gaussian, gaussian, uniform, uniform, uniform, ema, ema, ema,

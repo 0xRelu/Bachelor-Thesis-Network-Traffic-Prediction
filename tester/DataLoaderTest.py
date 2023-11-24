@@ -9,6 +9,7 @@ from data_provider.data_factory import data_provider
 from utils.metrics import MSE
 from utils.tools import dotdict
 
+
 def plot_batches(batch_x: np.ndarray):
     x = list(range(batch_x.shape[1]))  # assume 3 dims
 
@@ -18,15 +19,32 @@ def plot_batches(batch_x: np.ndarray):
         plt.show()
 
 
+def plot_stft(batch_x, f, t):
+    assert len(batch_x.shape) == 3
+
+    for i in range(len(batch_x)):
+        trans_batch = batch_x[i, :, :6] + 1j * batch_x[i, :, 6:]
+        trans_batch = trans_batch.numpy().transpose()
+
+        t_i = t[i][:trans_batch.shape[1]]
+
+        plt.pcolormesh(t_i, f[i], np.abs(trans_batch), shading='auto')
+        plt.ylabel('Frequency [Hz]')
+        plt.xlabel('Time [s]')
+        plt.title('Spectrogram')
+        plt.colorbar(label='?? [dB]')
+        plt.show()
+
+
 if __name__ == "__main__":
     print("Start")
 
     cw_config = {
-        'data': 'Traffic_Even_N2',
+        'data': 'Traffic_Even_Stft',
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
-        'data_path': "univ1_pt1_even3_test_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
+        'data_path': "univ1_pt1_even3_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
         'seq_len': 336,
         'label_len': 100,
         'pred_len': 96,
@@ -34,21 +52,24 @@ if __name__ == "__main__":
         'target': "bytes",
         'num_workers': 1,
         'embed': 'timeF',
-        'transform': 'gaussian',
-        'smooth_param': 2,  # '(10, 9)'  # 12
-        'stride': 10
+        'transform': None,
+        'smooth_param': '(10, 9)',  # 12
+        'stride': 100
     }
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        # plot_batches(batch_x[:20])
-        # sys.exit(0)
+        if i > 5:
+            plot_stft(batch_x[10:30], train_data.f[10:30], train_data.index_y[10:30])
+            sys.exit(0)
         if i % 100 == 0:
             print(f"\tTrain {i / len(train_loader)}")
+
+    sys.exit(0)
 
     train_data, train_loader = data_provider(config, flag='val')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
@@ -96,14 +117,9 @@ if __name__ == "__main__":
 
     batch_seq = []
 
-
     val_data, val_loader = data_provider(config, flag='val')
     print("Length: ", len(val_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(val_loader):
         if i % 100 == 0:
             print(f"\tVal {i / len(val_loader)}")
-
-
-
-

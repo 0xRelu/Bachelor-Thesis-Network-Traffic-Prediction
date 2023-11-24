@@ -1,5 +1,6 @@
 import math
 import pickle
+import random
 import sys
 from itertools import chain
 
@@ -11,13 +12,17 @@ from scapy.plist import PacketList
 from scapy.utils import rdpcap
 
 
-def create_test_from_full(file_path: str, save_path: str, amount: int = 10):
+def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuffle = False):
     print(f"[+] Loading flows from file with location: {file_path} ...")
 
     with open(file_path, 'rb') as f:
         data = pickle.load(f)
 
-    data = sorted(data, key=lambda x: len(x), reverse=True)
+    if not shuffle:
+        data = sorted(data, key=lambda x: len(x), reverse=True)
+    else:
+        random.shuffle(data)
+
     data = data[:amount]
 
     print(f"[+] Saving top {amount} flows in location: {save_path} ...")
