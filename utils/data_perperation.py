@@ -5,7 +5,6 @@ import sys
 from itertools import chain
 
 import numpy as np
-import pyshark
 from scapy.layers.inet import TCP, IP, UDP
 from scapy.packet import Packet
 from scapy.plist import PacketList
