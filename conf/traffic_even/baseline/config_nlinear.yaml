@@ -46,8 +46,8 @@ params:
   smooth_param: None
 
   # Forecasting task
-  seq_len: 2000 # input sequence length
-  label_len: 100 # start token length
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
