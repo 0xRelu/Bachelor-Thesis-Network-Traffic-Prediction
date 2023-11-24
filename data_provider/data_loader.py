@@ -501,6 +501,9 @@ class Dataset_Traffic_Even_n2(Dataset):
             data.append(data_bytes_flow)
             data_stamps.append(data_stamp)
 
+            if i % 1000 == 0:
+                print(f"[+] Finished loading {i / len(data_raw)} flows.")
+
         print(f"[+] Found {sum([len(x) for x in data])} sequences in {len(data_raw)} flows.")
 
         assert len(data_stamps) == len(data)
