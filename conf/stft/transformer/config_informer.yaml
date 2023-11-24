@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
+path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 100  # number of iterations per repetition
+iterations: 5  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,7 +35,7 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
+  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
@@ -72,6 +72,9 @@ list:
   smooth_param: [ '(10,9)', '(100, 90)', '(500, 450)',
                   '(10,9)', '(100, 90)', '(500, 450)',
                   '(10,9)', '(100, 90)', '(500, 450)' ] # stft parameters: (segment_length, overlap)
+  enc_in: [ 12, 102, 502,
+            12, 102, 502,
+            12, 102, 502 ] # encoder input size because of different stft segment sizes this has to be adapted
   seq_len: [ 200, 20, 4,
              200, 20, 4,
              200, 20, 4 ] # ~ 2000
@@ -87,7 +90,7 @@ list:
 #####################################################################################################################
 ---
 # Vanilla Transformer Experiment
-name: Informer-Even
+name: Informer-Stft
 
 params:
   # Basic
@@ -96,7 +99,7 @@ params:
 
   # Former specific
   embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
-  enc_in: 1 # encoder input size
+  # enc_in: 1 # encoder input size
   dec_in: 1 # decoder input size
   c_out: 1 # output size
   d_model: 512 # dimension of model
@@ -114,7 +117,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Informer-Even-stft-v1
+    project: Informer-Even-stft-v1-test
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

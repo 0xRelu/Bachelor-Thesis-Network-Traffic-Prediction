@@ -4,7 +4,7 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: Linear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: Linear-Job-Smooth    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
@@ -44,8 +44,8 @@ params:
   stride: 100
 
   # Forecasting task
-  seq_len: 2000 # input sequence length
-  label_len: 100 # start token length
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
@@ -84,7 +84,7 @@ list:
 ###############################################   LINEAR   ###############################################
 ---
 # Linear Experiment
-name: Linear-Traffic-Even
+name: Linear-Smoooth
 
 params:
   model_id: Linear

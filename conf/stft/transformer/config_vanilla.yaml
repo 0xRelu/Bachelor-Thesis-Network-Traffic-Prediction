@@ -89,7 +89,7 @@ list:
 #####################################################################################################################
 ---
 # Vanilla Transformer Experiment
-name: Vanilla-Traffic-Even
+name: Vanilla-Stft
 
 params:
   # Basic
