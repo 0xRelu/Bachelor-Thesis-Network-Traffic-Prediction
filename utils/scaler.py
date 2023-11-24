@@ -77,13 +77,16 @@ class StandardScalerList:
         self.fit(values)
         return self.transform(values)
 
-    def inverse_transform(self, values):
+    def inverse_transform_l(self, values):
         nValues = []
 
         for val in values:
             nValues.append(self.scaler.inverse_transform(val))
 
         return nValues
+
+    def inverse_transform(self, values):
+        return self.scaler.inverse_transform(values)
 
 
 class MinMaxScalerNp:

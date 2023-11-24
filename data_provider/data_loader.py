@@ -680,17 +680,13 @@ class Dataset_Traffic_Even_nstft(Dataset):
         seq_x_mark = self.data_stamp_x[index[0]][s_begin:s_end]
         seq_y_mark = self.data_stamp_y[index[0]][r_begin:r_end]
 
-        if (seq_x.shape != (self.seq_len, self.seg_len + 2) or seq_x_mark.shape != (self.seq_len, 8) or
-                seq_y.shape != (self.label_len + self.pred_len, 1) or seq_y_mark.shape != (self.label_len + self.pred_len, 8)):
-            raise IndexError(f"Sequences have not the right shape..: {seq_x.shape}, {seq_x_mark.shape}, {seq_y.shape}, {seq_y_mark.shape}")
-
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
         return len(self.index)  # len(self.data_x) - self.seq_len - self.pred_len + 1
 
-    def inverse_transform(self, data):
-        return self.scaler.inverse_transform(data)
+    def inverse_transform(self, data):  # can only transform target not context/input!!!
+        return self.scaler_y.inverse_transform(data)
 
 
 class Dataset_ETT_hour(Dataset):

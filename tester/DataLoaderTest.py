@@ -40,11 +40,11 @@ if __name__ == "__main__":
     print("Start")
 
     cw_config = {
-        'data': 'Traffic_Even_Stft',
+        'data': 'Traffic_Even_N2',
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
-        'data_path': "univ1_pt1_even3_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
+        'data_path': "univ1_pt1_even3_test_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
         'seq_len': 336,
         'label_len': 100,
         'pred_len': 96,
@@ -53,23 +53,21 @@ if __name__ == "__main__":
         'num_workers': 1,
         'embed': 'timeF',
         'transform': None,
-        'smooth_param': '(10, 9)',  # 12
-        'stride': 100
+        'smooth_param': None,  # 12
+        'stride': 10
     }
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        if i > 5:
-            plot_stft(batch_x[10:30], train_data.f[10:30], train_data.index_y[10:30])
-            sys.exit(0)
+        #if i > 5:
+        #    plot_stft(batch_x[10:30], train_data.f[10:30], train_data.index_y[10:30])
+        #    sys.exit(0)
         if i % 100 == 0:
             print(f"\tTrain {i / len(train_loader)}")
-
-    sys.exit(0)
 
     train_data, train_loader = data_provider(config, flag='val')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))

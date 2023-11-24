@@ -32,33 +32,6 @@ def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuf
     print(f"[x] Saved ...")
 
 
-def parse_pcap_to_list(paths: list, save_path: str):
-    print(f"[+] Loading packets from pcap file with location: {paths} ...")
-
-    counter = 0
-
-    for i in range(len(paths)):
-        packetList = rdpcap(paths[i])
-        ndata_flows = _split_flows_(packetList, -1)
-        counter += len(ndata_flows)
-        packetList = None
-
-        if i > 0:
-            with open(save_path, 'rb') as f:
-                data_flows = pickle.load(f)
-            data_flows.extend(ndata_flows)
-        else:
-            data_flows = ndata_flows
-
-        with open(save_path, 'wb') as f:
-            pickle.dump(data_flows, f)
-
-        data_flows = None
-        print(f"[x] Finished {paths[i]}. Found {counter} flows total. Start loading next...")
-
-    print(f"[+] Wrote {counter} flows successfully in file with path {save_path}")
-
-
 def parse_pcap_to_list_n(paths: list, save_path: str):
     print(f"[+] Loading packets from pcap file with location: {paths} ...")
 
@@ -202,49 +175,6 @@ def split_data_in_sockets(packets: PacketList, max_flows: int = -1) -> dir:
         counter += 1
 
     return connection_map
-
-
-def _split_flows_(packets: PacketList, max_flows: int) -> list:
-    data_flows = {}
-
-    counter = 0
-
-    for packet in packets:
-        counter += 1
-
-        if IP not in packet or (UDP not in packet[IP] and TCP not in packet[IP]):
-            continue
-
-        flow_id_1 = packet[IP].src + "|" + packet[IP].dst
-        flow_id_2 = packet[IP].dst + "|" + packet[IP].src
-
-        flow_id = flow_id_1
-
-        if flow_id_1 not in data_flows \
-                and flow_id_2 not in data_flows \
-                and len(data_flows) >= max_flows > 0:
-            continue
-
-        # add new flow
-        if flow_id_1 not in data_flows and flow_id_2 not in data_flows:
-            data_flows[flow_id_1] = []
-            if len(data_flows) % 10 == 0:
-                print(f"[+] \t Added new flow: {len(data_flows)}")
-
-        if flow_id_2 in data_flows:
-            flow_id = flow_id_2
-
-        packet_time = float(packet.time)
-        size = len(packet)
-
-        # add new entry to flow
-        data_flows.get(flow_id).append(
-            [packet_time, size, 0 if flow_id_1 is flow_id else 1, hot_embed_protocol(packet)])
-
-        if counter % 5000 == 0:
-            print(f"[+] Packets loaded: {counter / len(packets)}")
-
-    return [np.array(flow) for flow in data_flows.values()]
 
 
 def hot_embed_protocol(packet: Packet) -> int:

@@ -17,7 +17,7 @@ import numpy as np
 from numpy import ndarray
 
 from utils.data_perperation import split_list, _list_milliseconds_only_sizes_, _list_milliseconds_only_sizes_not_np, \
-    _split_flow_n, _list_milliseconds_, calculate_hurst_exponent, parse_pcap_to_list, parse_pcap_to_list_n, \
+    _split_flow_n, _list_milliseconds_, parse_pcap_to_list_n, \
     _split_flow_n2, create_test_from_full
 
 
@@ -559,7 +559,7 @@ if __name__ == "__main__":
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     # __create_split_flow_files__()
-    create_test_from_full(path, test_path, 2000, True)
+    # create_test_from_full(path, test_path, 2000, True)
 
     # _analyse_flows(path, save_analysis)
     # __create_split_flow_files__()  # only if packets got changed
