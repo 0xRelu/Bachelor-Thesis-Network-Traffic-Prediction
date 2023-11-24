@@ -4,7 +4,7 @@ name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: Non-Stationary-Transformer-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: Non-Stationary-Stft    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
@@ -75,9 +75,9 @@ list:
   enc_in: [ 12, 102, 502,
             12, 102, 502,
             12, 102, 502 ] # encoder input size because of different stft segment sizes this has to be adapted
-  seq_len: [ 200, 20, 4,
-             200, 20, 4,
-             200, 20, 4 ] # ~ 2000
+  seq_len: [ 2000, 200, 20,
+             2000, 200, 20,
+             2000, 200, 20 ] # ~ 2000
   pred_len: [ 96, 96, 96,
               172, 172, 172,
               336, 336, 336,
@@ -90,7 +90,7 @@ list:
 #####################################################################################################################
 ---
 # Vanilla Transformer Experiment
-name: Non-stationary-Transformer-Stft
+name: Non-stationary-Stft
 
 params:
   # Basic

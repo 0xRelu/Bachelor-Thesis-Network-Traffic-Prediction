@@ -40,12 +40,12 @@ if __name__ == "__main__":
     print("Start")
 
     cw_config = {
-        'data': 'Traffic_Even_N2',
+        'data': 'Traffic_Even_Stft',
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
-        'data_path': "univ1_pt1_even3_test_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
-        'seq_len': 336,
+        'data_path': "univ1_pt1_even3_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
+        'seq_len': 200,
         'label_len': 100,
         'pred_len': 96,
         'features': "M",
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         'num_workers': 1,
         'embed': 'timeF',
         'transform': None,
-        'smooth_param': None,  # 12
+        'smooth_param': '(100, 90)',  # 12
         'stride': 10
     }
 

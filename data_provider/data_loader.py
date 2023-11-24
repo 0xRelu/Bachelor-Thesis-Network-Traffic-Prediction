@@ -607,8 +607,8 @@ class Dataset_Traffic_Even_nstft(Dataset):
             data_stamp = np.array(list(map(lambda x: x[0], data_raw[i])))
             data_bytes_flow = np.array(list(map(lambda x: x[1], data_raw[i]))).reshape(-1, 1)
 
-            data_stamps_y.append(data_stamp.copy())
-            data_y.append(data_bytes_flow.copy())
+            data_stamp_y = data_stamp.copy()
+            data_bytes_y = data_bytes_flow.copy()
 
             self.seg_len, self.seg_overlap = tuple(ast.literal_eval(self.smooth_param))
             # stft
@@ -630,6 +630,9 @@ class Dataset_Traffic_Even_nstft(Dataset):
 
             data.append(data_bytes_flow)
             data_stamps.append(data_stamp)
+
+            data_stamps_y.append(data_stamp_y)
+            data_y.append(data_bytes_y)
 
         print(f"[+] Found {sum([len(x) for x in data])} sequences in {len(data_raw)} flows.")
         # data_stamps = np.array(data_stamps)

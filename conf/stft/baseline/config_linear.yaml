@@ -4,7 +4,7 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: Linear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: Linear-Job-Stft    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
@@ -73,9 +73,9 @@ list:
   smooth_param: [ '(10,9)', '(100, 90)', '(500, 450)',
                   '(10,9)', '(100, 90)', '(500, 450)',
                   '(10,9)', '(100, 90)', '(500, 450)' ] # stft parameters: (segment_length, overlap)
-  seq_len: [ 200, 20, 4,
-             200, 20, 4,
-             200, 20, 4 ] # ~ 2000
+  seq_len: [ 2000, 200, 20,
+             2000, 200, 20,
+             2000, 200, 20 ] # ~ 2000
   pred_len: [ 96, 96, 96,
               172, 172, 172,
               336, 336, 336,
@@ -87,7 +87,7 @@ list:
 ###############################################   LINEAR   ###############################################
 ---
 # Linear Experiment
-name: Linear-Traffic-Even
+name: Linear-Stft
 
 params:
   model_id: Linear
