@@ -10,7 +10,7 @@ job-name: PatchTST-Job-Smooth   # this will be the experiment's name in slurm
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 1220  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 1500  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
