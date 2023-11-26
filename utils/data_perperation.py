@@ -1,32 +1,41 @@
 import math
 import pickle
 import random
+import re
 import sys
 from itertools import chain
 
 import numpy as np
 from scapy.layers.inet import TCP, IP, UDP
-from scapy.packet import Packet
+from scapy.packet import Packet, Raw
 from scapy.plist import PacketList
+from scapy.sendrecv import sniff
+from scapy.sessions import TCPSession
 from scapy.utils import rdpcap
 
 
-def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuffle = False):
+def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuffle=False):
     print(f"[+] Loading flows from file with location: {file_path} ...")
 
     with open(file_path, 'rb') as f:
         data = pickle.load(f)
 
     if not shuffle:
-        data = sorted(data, key=lambda x: len(x), reverse=True)
+        keys = sorted(data.keys(), key=lambda k: len(data[k]), reverse=True)
     else:
-        random.shuffle(data)
+        keys = data.keys()
+        random.shuffle(keys)
 
-    data = data[:amount]
+    keys = keys[:amount]
+    res_data = {}
 
+    for key in keys:
+        res_data[key] = data[key]
+
+    data = None
     print(f"[+] Saving top {amount} flows in location: {save_path} ...")
     with open(save_path, 'wb') as f:
-        pickle.dump(data, f)
+        pickle.dump(res_data, f)
 
     print(f"[x] Saved ...")
 
@@ -39,8 +48,8 @@ def parse_pcap_to_list_n(paths: list, save_path: str):
     for i in range(len(paths)):
         merge_counter = 0
 
-        packetList = rdpcap(paths[i])
-        ndata_flows = split_data_in_sockets(packetList)
+        packetList = rdpcap(paths[i]).sessions()
+        ndata_flows = split_data(packetList)
         # ndata_flows = [split_in_flows(x) for x in ndata_flows.values()]
         # ndata_flows = list(chain(*ndata_flows))
         packetList = None
@@ -62,7 +71,8 @@ def parse_pcap_to_list_n(paths: list, save_path: str):
             data_flows = ndata_flows
 
         if i == len(paths) - 1:
-            data_flows = [sorted(x, key=lambda t: t[0]) for x in data_flows.values()]
+            for k, v in data_flows.items():
+                data_flows[k] = sorted(v, key=lambda t: t[0])
             # data_flows = [np.array(x) for x in data_flows]
 
         with open(save_path, 'wb') as f:
@@ -75,67 +85,59 @@ def parse_pcap_to_list_n(paths: list, save_path: str):
     print(f"[+] Wrote {size} flows successfully in file with path {save_path}")
 
 
-def split_in_flows(packets: list) -> list[list]:
-    '''
-    We expect TCP-Handshake -> Data -> TCP-Teardown
-    # teardown
-        if packets[i][-1] == 'FA' and \
-                packets[i + 1][-1] == 'A' and \
-                packets[i + 2][-1] == 'FA' and \
-                packets[i + 3][-1] == 'A':
-            if mode == 2:
-                print("WTF")
-            current += packets[i: i+4]
-            i += 4
-            mode = 2
-    '''
-    packets = sorted(packets, key=lambda x: x[0])
-    tcpConst = 3
+def split_data(sessions: dir):
+    flows = {}
 
-    flows = []
-    current = []
-    mode = 0  # 0 not defined, 1 after handshake, 2 after teardown
+    def parse_string(id_string):  # 'TCP 41.177.117.184:1618 > 41.177.3.224:51332'
+        pattern = re.compile(
+            r'(?P<protocol>\w+)\s(?P<src_ip>[\d.]+):(?P<src_port>\d+)\s>\s(?P<dst_ip>[\d.]+):(?P<dst_port>\d+).*')
+        match = pattern.match(id_string)
 
-    i = 0
-    arr_FA = [False, False]
-    arr_A = [False, False]
-
-    while i <= len(packets) - tcpConst:
-        # teardown
-        if packets[i][-1] == 'FA' and not arr_FA[0]:
-            arr_FA[0] = True
-        elif packets[i][-1] == 'A' and arr_FA[0] and not arr_A[0]:
-            arr_A[0] = True
-        elif packets[i][-1] == 'FA' and arr_FA[0] and arr_A[0] and not arr_FA[1]:
-            arr_FA[1] = True
-        elif packets[i][-1] == 'A' and arr_FA[1] and arr_A[0] and not arr_A[0]:
-            arr_A[1] = True
-
-        if all(arr_FA) and all(arr_A):
-            mode = 2
-            current.append(packets[i])
-            flows.append(current)
-            current = []
-
-        # handshake
-        if packets[i][-1] == 'S' and \
-                packets[i + 1][-1] == 'SA' and \
-                packets[i + 2][-1] == 'A':
-            assert len(current) == 0 and (mode == 2 or mode == 0)
-            current += packets[i: i + 3]
-            i += 3  # jump to first new element
-            mode = 1
-            arr_FA = [False, False]
-            arr_A = [False, False]
+        if match:
+            protocol = match.group('protocol')
+            src_ip = match.group('src_ip')
+            src_port = match.group('src_port')
+            dst_ip = match.group('dst_ip')
+            dst_port = match.group('dst_port')
+            return protocol, src_ip, src_port, dst_ip, dst_port
         else:
-            if mode == 2:
-                print("-------------------------------------------------------------FAILURE")
-            current.append(packets[i])
-            i += 1
+            # print(f"Could not find protocol, src or dst in: {id_string}")
+            return None
 
-    if len(current) != 0:
-        flows.append(current)
+    counter = 0
 
+    protocols = set()
+
+    for cid, packets in sessions.items():
+        res = parse_string(cid)
+
+        if res is None:
+            continue
+        else:
+            protocol, sip, sport, dip, dport = res
+            protocols.add(protocol)
+
+        forward_connection_id = (f"{protocol}|{sip}|{sport}", f"{protocol}|{dip}|{dport}")
+
+        if forward_connection_id in flows:
+            connection_id = forward_connection_id
+        elif tuple(reversed(forward_connection_id)) in flows:
+            connection_id = tuple(reversed(forward_connection_id))
+        else:
+            flows[forward_connection_id] = []
+            connection_id = forward_connection_id
+            if len(flows) % 100 == 0:
+                print(f"[+] \t Added new socket-to-socket connection: {len(flows)}")
+
+        flows[connection_id].extend(list(map(lambda packet: [float(packet.time), len(packet),
+                                                             0 if connection_id == forward_connection_id else 1,
+                                                             protocol, "" if TCP not in packet else packet[TCP].flags], packets)))
+
+        if counter % 5000 == 0:
+            print(f"[+] Packets loaded: {counter / len(packets)}")
+        counter += 1
+
+    print(f"Found protocolls: {protocols}")
     return flows
 
 
@@ -225,7 +227,7 @@ def _list_milliseconds_only_sizes_(data_flow: np.ndarray, aggregation_time: int 
     return np.array(flow)
 
 
-def _list_milliseconds_only_sizes_not_np(data_flow: np.ndarray, aggregation_time: int = 1000) -> list:
+def _list_milliseconds_only_sizes_not_np(data_flow: list, aggregation_time: int = 1000) -> list:
     start_time = int(data_flow[0][0] * aggregation_time)  # assumes packets are ordered
     end_time = int(data_flow[-1][0] * aggregation_time) + 1
     flow = [[time / aggregation_time, 0] for time in range(start_time, end_time + 1)]
@@ -376,9 +378,9 @@ def split_by(tuples: list, percentages) -> list[dir]:
 
 
 if __name__ == "__main__":
-
     seq = [[(0, i) for i in range(3)], [(2, i) for i in range(2)], [(4, i) for i in range(3)],
-              [(5, i) for i in range(2)], [(6, i) for i in range(1)], [(7, i) for i in range(4)], [(8, i) for i in range(3)], [(9, i) for i in range(3)], [(10, i) for i in range(1)]]
+           [(5, i) for i in range(2)], [(6, i) for i in range(1)], [(7, i) for i in range(4)],
+           [(8, i) for i in range(3)], [(9, i) for i in range(3)], [(10, i) for i in range(1)]]
     test = split_by(seq, [0.7, 0.2, 0.1])
     print(test)
 
@@ -390,4 +392,3 @@ if __name__ == "__main__":
 
     test = _split_flow_n2(seq, 3)
     print(test)
-
