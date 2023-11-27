@@ -372,6 +372,28 @@ class DataTransformerSinglePacketsEven(DataTransformerBase):
         return seq_x, seq_y
 
 
+def _compare(new_file_path, old_file_path):
+    with open(new_file_path, 'rb') as f:
+        new_data = pickle.load(f)
+
+    with open(old_file_path, 'rb') as f:
+        old_data = pickle.load(f)
+
+    nnew_data = []
+
+    for k, v in new_data.items():
+        if k[0].startswith('TCP'):
+            nnew_data.append(v)
+
+    assert len(nnew_data) == len(old_data)
+
+    new_data = sorted(nnew_data, key=lambda x: len(x))
+    old_data = sorted(old_data, key=lambda x: len(x))
+
+    for i in range(len(new_data)):
+        assert len(new_data[i]) == len(old_data[i])
+
+
 def _analyse_flows(file_path: str, save_path: str):
     open_path = file_path if not os.path.exists(save_path) else save_path
 
@@ -379,7 +401,11 @@ def _analyse_flows(file_path: str, save_path: str):
         data = pickle.load(f)
 
     if os.path.exists(save_path):
-        print(f"{len(data['flow_data'])}")
+        del data['flow_data']
+        print(data)
+        print(f"TCP: Flows: {data['tcp_counter'] / (data['tcp_counter'] + data['udp_counter'])}, "
+              f"Bytes: {data['tcp_bytes'] / (data['tcp_bytes'] + data['udp_bytes'])}, "
+              f"Packets: {data['tcp_packets'] / (data['tcp_packets'] + data['udp_packets'])}")
         return
 
     # --- flow general data
@@ -390,6 +416,12 @@ def _analyse_flows(file_path: str, save_path: str):
     l110 = []
     l10100 = []
     l100 = []
+
+    tcpl01 = []
+    tcpl011 = []
+    tcpl110 = []
+    tcpl10100 = []
+    tcpl100 = []
 
     tcp_counter = 0
     udp_counter = 0
@@ -440,6 +472,20 @@ def _analyse_flows(file_path: str, save_path: str):
         else:
             print(f"WTFTFTFT------ {nFlow_data}")
 
+        if key[0].startswith("TCP"):
+            if nFlow_data[2] < 0.1:
+                tcpl01.append(nFlow_data)
+            elif 0.1 <= nFlow_data[2] < 1:
+                tcpl011.append(nFlow_data)
+            elif 1 <= nFlow_data[2] < 10:
+                tcpl110.append(nFlow_data)
+            elif 10 <= nFlow_data[2] < 100:
+                tcpl10100.append(nFlow_data)
+            elif 100 <= nFlow_data[2]:
+                tcpl100.append(nFlow_data)
+            else:
+                print(f"WTFTFTFT------ {nFlow_data}")
+
         if len(flow_data) % 10000 == 0:
             print(f"[+] Finished {len(flow_data)} / {len(data)} : {len(flow_data) / len(data)}")
 
@@ -449,6 +495,11 @@ def _analyse_flows(file_path: str, save_path: str):
         'l110': [len(l110), sum([x[1] for x in l110])],
         'l10100': [len(l10100), sum([x[1] for x in l10100])],
         'l100': [len(l01), sum([x[1] for x in l100])],
+        'tcpl01': [len(tcpl01), sum([x[1] for x in tcpl01])],
+        'tcpl011': [len(tcpl011), sum([x[1] for x in tcpl011])],
+        'tcpl110': [len(tcpl110), sum([x[1] for x in tcpl110])],
+        'tcpl10100': [len(tcpl10100), sum([x[1] for x in tcpl10100])],
+        'tcpl100': [len(tcpl01), sum([x[1] for x in tcpl100])],
         'tcp_counter': tcp_counter,
         'tcp_bytes': tcp_bytes,
         'tcp_packets': tcp_packets,
@@ -470,13 +521,25 @@ def _analyse_flows(file_path: str, save_path: str):
     return data
 
 
-def __create_split_flow_files__():
+def _create_split_flow_files():
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt'  # _test
     path = [path + str(i) for i in range(1, 21)]
     path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test'  #
 
     save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt_full.pkl'
     save_path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt1_test.pkl'
+
+    parse_pcap_to_list_n(path, save_path)
+    # parse_pcap_to_list_n([path_test], save_path_test)
+
+
+def _create_split_flow_files_uni2():
+    path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI2\\univ2_pt'  # _test
+    path = [path + str(i) for i in range(1, 9)]
+    path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI2\\univ2_pt2_test'  #
+
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI2\\univ2_pt_full.pkl'
+    save_path_test = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI2\\univ2_pt2_test.pkl'
 
     parse_pcap_to_list_n(path, save_path)
     # parse_pcap_to_list_n([path_test], save_path_test)
@@ -544,10 +607,12 @@ if __name__ == "__main__":
     preds = [12, 18, 24, 30]
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
-    # __create_split_flow_files__()
+    # _create_split_flow_files()
+    _create_split_flow_files_uni2()
     # create_test_from_full(path, test_path, 2000, True)
+    # _compare(path, 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1\\univ1_pt_n.pkl')
 
-    _analyse_flows(path, save_analysis)
+    # _analyse_flows(path, save_analysis)
     # __create_split_flow_files__()  # only if packets got changed
 
     # __save_even_new__(path, aggregation_time)
