@@ -497,8 +497,8 @@ if __name__ == "__main__":
 
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
-    _create_split_flow_files()
-    # create_test_from_full(path, test_path, 50, True)
+    # _create_split_flow_files()
+    create_test_from_full(path, test_path, 'TCP', 50, False)
 
     # __save_even_new2__(test_path, test_save_path, aggregation_time)
     # _save_even_gpu(test_path, test_save_path, aggr_time=aggregation_time)

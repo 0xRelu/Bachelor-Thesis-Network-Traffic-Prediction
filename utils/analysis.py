@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from torch import float64, tensor
 
 from utils.data_perperation import _list_milliseconds_only_sizes_not_np, split_list, split_dict, \
-    _list_milliseconds_only_sizes_torch, calculate_hurst_exponent
+    _list_milliseconds_only_sizes_torch, calculate_hurst_exponent, _split_tensor_gpu2
 
 
 def visualize_flows(file_path, aggregation_time=1000, amount=20, min_length=500, only_tcp=True):
@@ -78,7 +78,7 @@ def getData(data_flows: tensor, only_tcp=True):
           f"l10100: {len(l100)}|{sum([x[1] for x in l100])}")
 
 
-def analysis_gpu(file_path: str, save_path: str, aggr=1000, only_tcp=True):
+def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=500, only_tcp=True):
     open_path = file_path if not os.path.exists(save_path) else save_path
 
     with open(open_path, 'rb') as f:
@@ -111,17 +111,29 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, only_tcp=True):
 
         packet_times = ((flow[:, 0] * aggr) - start_time).long()
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
+        flow_series_split = torch.stack((torch.zeros(flow_series_bytes.shape[0], device=device), flow_series_bytes),
+                                        dim=1)
+        flow_series_split = _split_tensor_gpu2(flow_series_split, consecutive_zeros)
 
-        max_value = flow_series_bytes.max()
-        mean_ = flow_series_bytes.mean(dim=0)
-        var_ = flow_series_bytes.var(dim=0)
+        ptm = []
+        vtm = []
+        b = []
+        a = []
 
-        ptm = max_value / mean_
-        vtm = var_ / mean_
-        b = (var_ - mean_) / (mean_ + var_)
-        a = ((np.sqrt(len(flow_series_bytes) + 1) * vtm - np.sqrt(len(flow_series_bytes) - 1)) /
-             ((np.sqrt(len(flow_series_bytes) + 1) - 2) * vtm + np.sqrt(len(flow_series_bytes) - 1)))
-        H, _, _ = calculate_hurst_exponent(flow_series_bytes, device)
+        for sub_flow in flow_series_split:
+            max_value = sub_flow[:, 1].max()
+            mean_ = sub_flow[:, 1].mean()
+            var_ = sub_flow[:, 1].var()
+
+            vtm_ = var_ / mean_
+
+            ptm.append(max_value / mean_)
+            vtm.append(vtm_)
+            b.append((var_ - mean_) / (mean_ + var_))
+
+            a.append((torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) + 1) * vtm_ - torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) - 1)) /
+                     ((torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) + 1) - 2) * vtm_ + torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) - 1)))
+            # H, _, _ = calculate_hurst_exponent(sub_flow, device)
 
         if len(flow) < 2:
             duration = 0
@@ -132,7 +144,9 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, only_tcp=True):
 
             duration = duration.total_seconds()
 
-        nFlow_data = [packet_count, byte_count.item(), duration, ptm.item(), vtm.item(), b.item(), a.item(), H, 0]
+        nFlow_data = [packet_count, byte_count.item(), duration, torch.tensor(ptm).mean().item(),
+                      torch.tensor(vtm).mean().item(),
+                      torch.tensor(b).mean().item(), torch.tensor(a).mean().item(), 0, 0]
         flow_data.append(nFlow_data)
 
         if len(flow_data) % 1000 == 0:
@@ -212,6 +226,6 @@ if __name__ == "__main__":
     # visualize_flows(path)
     # analyse_flows(path, save_analysis)
 
-    analysis_gpu(test_path, save_test_analysis, 1000)
+    analysis_gpu(path, save_analysis, 1000)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

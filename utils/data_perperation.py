@@ -10,24 +10,33 @@ import numpy as np
 import torch
 from scapy.layers.http import HTTP
 from scapy.layers.inet import TCP, IP, UDP
-from scapy.packet import Packet, Raw
+from scapy.packet import Packet
 from scapy.plist import PacketList
-from scapy.sendrecv import sniff
-from scapy.sessions import TCPSession
 from scapy.utils import rdpcap
 from torch import tensor
 
 
-def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuffle=False):
+def create_test_from_full(file_path: str, save_path: str, filter_prot: str = 'TCP', amount: int = 10,
+                          shuffle=False):  # options HTTP, TPC, None=Nothing
     print(f"[+] Loading flows from file with location: {file_path} ...")
 
     with open(file_path, 'rb') as f:
         data = pickle.load(f)
 
+    keys = list(data.keys())
+
+    if filter_prot == 'TCP':
+        keys = [k for k in keys if k[0].startswith('TCP')]
+    elif filter_prot == 'HTTP':
+        keys = [k for k in keys if
+                any(packet[3] == "HTTP" for packet in data[k])]  # check if one packet has http layer in the flow
+        print(len(keys))
+
+    print(f"[+] Found {len(keys)} flows with filter {filter_prot}.")
+
     if not shuffle:
-        keys = sorted(list(data.keys()), key=lambda k: len(data[k]), reverse=True)
+        keys = sorted(keys, key=lambda k: sum([p[1] for p in data[k]]), reverse=True)
     else:
-        keys = list(data.keys())
         random.shuffle(keys)
 
     keys = keys[:amount]
@@ -37,7 +46,7 @@ def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuf
         res_data[key] = data[key]
 
     data = None
-    print(f"[+] Saving top {amount} flows in location: {save_path} ...")
+    print(f"[+] Saving top {len(res_data)} flows in location: {save_path} ...")
     with open(save_path, 'wb') as f:
         pickle.dump(res_data, f)
 
@@ -62,22 +71,22 @@ def parse_pcap_to_list_n(paths: list, save_path: str):
             with open(save_path, 'rb') as f:
                 data_flows = pickle.load(f)
 
-            # for key, value in ndata_flows.items():
-            #     if key in data_flows:
-            #         data_flows[key] += value
-            #         merge_counter += 1
-            #     elif tuple(reversed(key)) in data_flows:
-            #         data_flows[tuple(reversed(key))] += value
-            #         merge_counter += 1
-            #     else:
-            #         data_flows[key] = value
-
             for key, value in ndata_flows.items():
-                if key in data_flows or tuple(reversed(key)) in data_flows:
-                    data_flows[(key[0] + "-" + str(merge_counter), key[1] + "-" + str(merge_counter))] = value
+                if key in data_flows:
+                    data_flows[key] += value
+                    merge_counter += 1
+                elif tuple(reversed(key)) in data_flows:
+                    data_flows[tuple(reversed(key))] += value
                     merge_counter += 1
                 else:
                     data_flows[key] = value
+
+            # for key, value in ndata_flows.items():
+            #     if key in data_flows or tuple(reversed(key)) in data_flows:
+            #         data_flows[(key[0] + "-" + str(merge_counter), key[1] + "-" + str(merge_counter))] = value
+            #         merge_counter += 1
+            #     else:
+            #         data_flows[key] = value
 
         else:
             data_flows = ndata_flows
@@ -143,7 +152,8 @@ def split_data(sessions: dir):
 
         flows[connection_id].extend(list(map(lambda packet: [float(packet.time), len(packet),
                                                              0 if connection_id == forward_connection_id else 1,
-                                                             protocol, "" if TCP not in packet else packet[TCP].flags, "" if HTTP not in packet else packet[HTTP].summary()],
+                                                             protocol if HTTP not in packet else 'HTTP',
+                                                             "" if TCP not in packet else packet[TCP].flags],
                                              packets)))
 
         if counter % 5000 == 0:
@@ -190,27 +200,6 @@ def split_data_in_sockets(packets: PacketList, max_flows: int = -1) -> dir:
 
     return connection_map
 
-
-def analyze_flows(files: list):
-    for file_ in files:
-        command_ = f"tshark -r {file_} -qz conv,tcp"
-        output_ = subprocess.check_output(command_, shell=True, text=True)
-        analyze_flow(output_)
-
-
-def analyze_flow(output):
-    flows = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+ -> \d+\.\d+\.\d+\.\d+:\d+', output)
-
-    for flow in flows:
-        print("Flow:", flow)
-        flow_info = subprocess.check_output(f"tshark -r your_file.pcap -qz conv,tcp -z follow,tcp,ascii,{flow}",
-                                            shell=True)
-
-        packet_count = int(re.search(r'Number of packets: (\d+)', flow_info).group(1))
-        total_bytes = int(re.search(r'Length of this packet \(\): (\d+)', flow_info).group(1))
-
-        print("Number of Packets:", packet_count)
-        print("Total Bytes:", total_bytes)
 
 def hot_embed_protocol(packet: Packet) -> int:
     if IP not in packet:
@@ -306,13 +295,6 @@ def _split_flow_n(split_flow: list[list], split_at: int, min_length: int, aggreg
 
     filtered_list = []
     zero_counter = 0
-
-    # If 0 -> zero_counter + 1; current append 0
-    # If 0 and zero_counter > x -> zero_counter += 1
-
-    # If Z -> zero_counter = 0; non_zero_counter += 1; current append Z
-    # If Z and zero_counter > x and non_zero_counter >= y -> filtered append Zeros and current; zero_counter = 0, non_zero_counter = 0
-    # If Z; zero_counter > x; non_zero_counter < y -> zero_counter = 0; non_zero_counter = 0
 
     for value in split_flow:
         if value[1] == 0:
@@ -432,6 +414,39 @@ def _split_tensor_gpu(split_flow, consecutive_zeros):
     return splitted_list
 
 
+def _split_tensor_gpu2(tensor_, consecutive_zeros):
+    # step 1: identify Zero Sequences
+    # create a mask of zeros and find the difference between consecutive elements
+    is_zero = tensor_[:, 1] == 0
+    diff = torch.diff(is_zero.float(), prepend=torch.tensor([0.0], device=tensor_.device))
+
+    # start and end indices of zero sequences
+    start_indices = torch.where(diff == 1)[0]
+    end_indices = torch.where(diff == -1)[0]
+
+    # adjust for cases where sequences reach the end of the tensor
+    if len(end_indices) == 0 or (len(start_indices) > 0 and end_indices[-1] < start_indices[-1]):
+        end_indices = torch.cat([end_indices, tensor_.size(0) * torch.ones(1, dtype=torch.long, device=tensor_.device)])
+
+    # step 2: mark split points
+    # find sequences with length >= consecutive_zeros
+    valid_seqs = (end_indices - start_indices) > consecutive_zeros
+    valid_start_indices = start_indices[valid_seqs] + consecutive_zeros  # 0:st+2
+    valid_end_indices = end_indices[valid_seqs]
+
+    splits = []
+    end_idx = 0
+    for i in range(len(valid_start_indices)):
+        splits.append(tensor_[end_idx:valid_start_indices[i]])
+        end_idx = valid_end_indices[i]
+
+    # add the remaining part of the tensor if any
+    if end_idx < tensor_.size(0):
+        splits.append(tensor_[end_idx:])
+
+    return splits
+
+
 def calculate_hurst_exponent(data: torch, device):
     if len(data) < 10:
         return -1, -1, [[], []]
@@ -512,6 +527,20 @@ def test_split_tensor(func):
 
         return True
 
+    seq = torch.tensor([[0, 1], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1]])
+    res = [torch.tensor([[0, 1], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1]])]
+
+    seq = func(seq, 3)
+    assert are_lists_of_tensors_equal(seq, res)
+
+
+    seq = torch.tensor([[0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1]])
+    res = [torch.tensor([[0, 1], [0, 0], [0, 0]]), torch.tensor([[0, 1], [0, 1], [0, 0], [0, 0]]),
+           torch.tensor([[0, 1]])]
+
+    seq = func(seq, 2)
+    assert are_lists_of_tensors_equal(seq, res)
+
     seq = torch.tensor([[0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 1]])
     res = [torch.tensor([[0, 1], [0, 0], [0, 0]]), torch.tensor([[0, 1], [0, 1], [0, 1]])]
 
@@ -536,30 +565,34 @@ def test_split_tensor(func):
     seq = func(seq, 2)
     assert are_lists_of_tensors_equal(seq, res)
 
-    seq = torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]])
+    seq = torch.tensor(
+        [[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0],
+         [0, 0], [0, 0]])
     res = [torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0]]),
            torch.tensor([[0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0]])]
 
     seq = func(seq, 2)
     assert are_lists_of_tensors_equal(seq, res)
 
-    seq = torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]])
-    res = [torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0]])]
+    seq = torch.tensor(
+        [[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0],
+         [0, 0], [0, 0]])
+    res = [torch.tensor(
+        [[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0],
+         [0, 0]])]
 
     seq = func(seq, 3)
     assert are_lists_of_tensors_equal(seq, res)
-
 
     print("Success")
     sys.exit(0)
 
 
 if __name__ == "__main__":
-    test_split_tensor(_split_tensor_gpu)
+    test_split_tensor(_split_tensor_gpu2)
 
     seq = [[(0, i) for i in range(3)], [(2, i) for i in range(2)], [(4, i) for i in range(3)],
            [(5, i) for i in range(2)], [(6, i) for i in range(1)], [(7, i) for i in range(4)],
            [(8, i) for i in range(3)], [(9, i) for i in range(3)], [(10, i) for i in range(1)]]
     test = split_by(seq, [0.7, 0.2, 0.1])
     print(test)
-

@@ -10,7 +10,7 @@ job-name: Non-Stationary-Job-Traffic-Even    # this will be the experiment's nam
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 1500  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 1000  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
-iterations: 100  # number of iterations per repetition
+iterations: 50  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
