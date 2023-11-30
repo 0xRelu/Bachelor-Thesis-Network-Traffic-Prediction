@@ -18,7 +18,6 @@ def plot_batches(batch_x: np.ndarray):
         plt.legend()
         plt.show()
 
-
 def plot_stft(batch_x, f, t):
     assert len(batch_x.shape) == 3
 

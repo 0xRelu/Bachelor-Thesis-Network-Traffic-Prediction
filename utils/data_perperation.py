@@ -2,16 +2,20 @@ import math
 import pickle
 import random
 import re
+import subprocess
 import sys
 from itertools import chain
 
 import numpy as np
+import torch
+from scapy.layers.http import HTTP
 from scapy.layers.inet import TCP, IP, UDP
 from scapy.packet import Packet, Raw
 from scapy.plist import PacketList
 from scapy.sendrecv import sniff
 from scapy.sessions import TCPSession
 from scapy.utils import rdpcap
+from torch import tensor
 
 
 def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuffle=False):
@@ -21,9 +25,9 @@ def create_test_from_full(file_path: str, save_path: str, amount: int = 10, shuf
         data = pickle.load(f)
 
     if not shuffle:
-        keys = sorted(data.keys(), key=lambda k: len(data[k]), reverse=True)
+        keys = sorted(list(data.keys()), key=lambda k: len(data[k]), reverse=True)
     else:
-        keys = data.keys()
+        keys = list(data.keys())
         random.shuffle(keys)
 
     keys = keys[:amount]
@@ -58,15 +62,23 @@ def parse_pcap_to_list_n(paths: list, save_path: str):
             with open(save_path, 'rb') as f:
                 data_flows = pickle.load(f)
 
+            # for key, value in ndata_flows.items():
+            #     if key in data_flows:
+            #         data_flows[key] += value
+            #         merge_counter += 1
+            #     elif tuple(reversed(key)) in data_flows:
+            #         data_flows[tuple(reversed(key))] += value
+            #         merge_counter += 1
+            #     else:
+            #         data_flows[key] = value
+
             for key, value in ndata_flows.items():
-                if key in data_flows:
-                    data_flows[key] += value
-                    merge_counter += 1
-                elif tuple(reversed(key)) in data_flows:
-                    data_flows[tuple(reversed(key))] += value
+                if key in data_flows or tuple(reversed(key)) in data_flows:
+                    data_flows[(key[0] + "-" + str(merge_counter), key[1] + "-" + str(merge_counter))] = value
                     merge_counter += 1
                 else:
                     data_flows[key] = value
+
         else:
             data_flows = ndata_flows
 
@@ -131,7 +143,8 @@ def split_data(sessions: dir):
 
         flows[connection_id].extend(list(map(lambda packet: [float(packet.time), len(packet),
                                                              0 if connection_id == forward_connection_id else 1,
-                                                             protocol, "" if TCP not in packet else packet[TCP].flags], packets)))
+                                                             protocol, "" if TCP not in packet else packet[TCP].flags, "" if HTTP not in packet else packet[HTTP].summary()],
+                                             packets)))
 
         if counter % 5000 == 0:
             print(f"[+] Packets loaded: {counter / len(packets)}")
@@ -178,6 +191,27 @@ def split_data_in_sockets(packets: PacketList, max_flows: int = -1) -> dir:
     return connection_map
 
 
+def analyze_flows(files: list):
+    for file_ in files:
+        command_ = f"tshark -r {file_} -qz conv,tcp"
+        output_ = subprocess.check_output(command_, shell=True, text=True)
+        analyze_flow(output_)
+
+
+def analyze_flow(output):
+    flows = re.findall(r'\d+\.\d+\.\d+\.\d+:\d+ -> \d+\.\d+\.\d+\.\d+:\d+', output)
+
+    for flow in flows:
+        print("Flow:", flow)
+        flow_info = subprocess.check_output(f"tshark -r your_file.pcap -qz conv,tcp -z follow,tcp,ascii,{flow}",
+                                            shell=True)
+
+        packet_count = int(re.search(r'Number of packets: (\d+)', flow_info).group(1))
+        total_bytes = int(re.search(r'Length of this packet \(\): (\d+)', flow_info).group(1))
+
+        print("Number of Packets:", packet_count)
+        print("Total Bytes:", total_bytes)
+
 def hot_embed_protocol(packet: Packet) -> int:
     if IP not in packet:
         raise IndexError("IP has to be in packet.")
@@ -201,6 +235,23 @@ def split_list(input_list, num_parts):
         last += avg
 
     return out
+
+
+def split_dict(dictionary, num_parts):
+    dict_length = len(dictionary)
+    items_per_part = math.ceil(dict_length / num_parts)
+
+    split_dicts = []
+    current_part = {}
+
+    for idx, (key, value) in enumerate(dictionary.items()):
+        current_part[key] = value
+
+        if (idx + 1) % items_per_part == 0 or (idx + 1) == dict_length:
+            split_dicts.append(current_part)
+            current_part = {}
+
+    return split_dicts
 
 
 def _list_milliseconds_(data_flow: np.ndarray, aggregation_time: int = 1000) -> list:
@@ -235,6 +286,17 @@ def _list_milliseconds_only_sizes_not_np(data_flow: list, aggregation_time: int 
     for packet in data_flow:
         packet_time = int(packet[0] * aggregation_time)
         flow[packet_time - start_time][1] += packet[1]
+
+    return flow
+
+
+def _list_milliseconds_only_sizes_torch(data_flow: tensor, device, aggregation_time: int = 1000) -> tensor:
+    start_time = int(data_flow[0, 0] * aggregation_time)  # assumes packets are ordered
+    end_time = int(data_flow[-1, 0] * aggregation_time) + 1
+    flow = torch.zeros(end_time - start_time + 1, device=device)
+
+    packet_times = (data_flow[:, 0] * aggregation_time).int()
+    flow[packet_times - start_time] += data_flow[:, 1]
 
     return flow
 
@@ -307,33 +369,95 @@ def _split_flow_n2(split_flow: list[list], split_at: int):
     return splitted_list
 
 
-def calculate_hurst_exponent(data: np.ndarray):
+def _split_flow_tensor(split_flow: tensor, consecutive_zeros: int):
+    zero_indices = torch.where(split_flow[:, 1] == 0)[0]
+    split_indices = []
+    rem = []
+
+    current_count = 0
+
+    for i in range(1, len(zero_indices)):
+        if zero_indices[i] == zero_indices[i - 1] + 1:
+            current_count += 1
+        else:
+            if current_count >= consecutive_zeros:
+                split_indices.append(zero_indices[i - 1].int().item() + 1)
+                rem.append(len(split_indices) - 1)
+            current_count = 0
+
+        if current_count == consecutive_zeros:
+            split_indices.append(zero_indices[i].int().item())
+
+    if zero_indices[-1] < len(split_flow) - 1:
+        split_indices.append(zero_indices[-1].int().item() + 1)
+        rem.append(len(split_indices) - 1)
+
+    # split_indices.append(len(split_flow))
+    splitted_list = torch.tensor_split(split_flow, split_indices, dim=0)
+
+    if torch.all(splitted_list[-1][:, 1] == 0).item():
+        rem.append(len(split_indices))
+
+    splitted_list = [t for i, t in enumerate(splitted_list) if i not in rem]
+
+    return splitted_list
+
+
+def _split_tensor_gpu(split_flow, consecutive_zeros):
+    zero_indices = torch.nonzero(split_flow[:, 1] == 0).view(-1)
+
+    if len(zero_indices) == 0:
+        return [split_flow]
+
+    splitted_list = []
+    first_index = 0
+    zero_counter = 0
+
+    for i in range(1, len(zero_indices)):
+        if zero_indices[i] - zero_indices[i - 1] == 1:
+            zero_counter += 1
+        else:
+            zero_counter = 0
+
+        if zero_counter == consecutive_zeros:
+            splitted_list.append(split_flow[first_index:zero_indices[i]])
+            first_index = zero_indices[i] + 1
+
+        if zero_counter > consecutive_zeros:
+            first_index = zero_indices[i] + 1
+
+    if first_index <= len(split_flow) - 1:
+        splitted_list.append(split_flow[first_index:])
+
+    return splitted_list
+
+
+def calculate_hurst_exponent(data: torch, device):
     if len(data) < 10:
         return -1, -1, [[], []]
 
-    segment_sizes = list(map(lambda x: int(10 ** x), np.arange(math.log10(10), math.log10(len(data)), 0.25))) + [
-        len(data)]
-
+    segment_sizes = torch.tensor([int(10 ** x) for x in torch.arange(math.log10(10), math.log10(len(data)), 0.25)]
+                                 + [len(data)], device=device)
     RS = []
 
     def _calc_rs(chunk):
-        R = np.ptp(chunk)
-        S = np.std(chunk)
+        R = torch.max(chunk) - torch.min(chunk)
+        S = torch.std(chunk)
 
         if R == 0 or S == 0:
-            return 0
+            return torch.tensor(0.0, device=device, dtype=torch.float64)
 
         return R / S
 
     for segment_size in segment_sizes:
         chunked_data = [data[i:i + segment_size] for i in range(0, len(data), segment_size)]
-        w_rs = np.mean([_calc_rs(chunk) for chunk in chunked_data])
+        w_rs = torch.mean(torch.stack([_calc_rs(chunk) for chunk in chunked_data]))
         RS.append(w_rs)
 
-    A = np.vstack([np.log10(segment_sizes), np.ones(len(RS))]).T
-    H, c = np.linalg.lstsq(A, np.log10(RS), rcond=-1)[0]
+    A = torch.vstack([torch.log10(segment_sizes), torch.ones(len(RS), device=device, dtype=torch.float64)]).T
+    H, c = torch.linalg.lstsq(A, torch.log10(torch.tensor(RS, device=device, dtype=torch.float64)), rcond=-1)[0]
 
-    return H, c, [segment_sizes, RS]
+    return H.item(), c.item(), [segment_sizes, RS]
 
 
 def calculate_autocorrelation(data: np.ndarray):
@@ -377,18 +501,65 @@ def split_by(tuples: list, percentages) -> list[dir]:
     return splits
 
 
+def test_split_tensor(func):
+    def are_lists_of_tensors_equal(list1, list2):
+        if len(list1) != len(list2):
+            return False
+
+        for tensor1, tensor2 in zip(list1, list2):
+            if not torch.equal(tensor1, tensor2):
+                return False
+
+        return True
+
+    seq = torch.tensor([[0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 1]])
+    res = [torch.tensor([[0, 1], [0, 0], [0, 0]]), torch.tensor([[0, 1], [0, 1], [0, 1]])]
+
+    seq = func(seq, 2)
+    assert are_lists_of_tensors_equal(seq, res)
+
+    seq = torch.tensor([[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]])
+    res = [torch.tensor([[0, 0], [0, 0]])]
+
+    seq = func(seq, 2)
+    assert are_lists_of_tensors_equal(seq, res)
+
+    seq = torch.tensor([[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1]])
+    res = [torch.tensor([[0, 0], [0, 0]]), torch.tensor([[0, 1]])]
+
+    seq = func(seq, 2)
+    assert are_lists_of_tensors_equal(seq, res)
+
+    seq = torch.tensor([[0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0]])
+    res = [torch.tensor([[0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0]])]
+
+    seq = func(seq, 2)
+    assert are_lists_of_tensors_equal(seq, res)
+
+    seq = torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]])
+    res = [torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0]]),
+           torch.tensor([[0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0]])]
+
+    seq = func(seq, 2)
+    assert are_lists_of_tensors_equal(seq, res)
+
+    seq = torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]])
+    res = [torch.tensor([[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0]])]
+
+    seq = func(seq, 3)
+    assert are_lists_of_tensors_equal(seq, res)
+
+
+    print("Success")
+    sys.exit(0)
+
+
 if __name__ == "__main__":
+    test_split_tensor(_split_tensor_gpu)
+
     seq = [[(0, i) for i in range(3)], [(2, i) for i in range(2)], [(4, i) for i in range(3)],
            [(5, i) for i in range(2)], [(6, i) for i in range(1)], [(7, i) for i in range(4)],
            [(8, i) for i in range(3)], [(9, i) for i in range(3)], [(10, i) for i in range(1)]]
     test = split_by(seq, [0.7, 0.2, 0.1])
     print(test)
 
-    sys.exit(0)
-    seq = [[0, 1], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 0],
-           [0, 0], [0, 1]
-        , [0, 1], [0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0],
-           [0, 0], [0, 0]]
-
-    test = _split_flow_n2(seq, 3)
-    print(test)

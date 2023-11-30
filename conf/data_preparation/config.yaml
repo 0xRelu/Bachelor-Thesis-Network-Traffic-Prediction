@@ -1,0 +1,54 @@
+---
+# Slurm config (optional)
+name: "SLURM"   # MUST BE "SLURM"
+
+# Required
+partition: gpu_8
+job-name: "Data-Preparation"    # this will be the experiment's name in slurm
+
+# Required - Cluster Specific
+num_parallel_jobs: 120
+ntasks: 1
+cpus-per-task: 4
+time: 200  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+
+mem-per-cpu: 60000 # Optional - Cluster specific
+sbatch_args: # gpus need to be explicitly requested using this
+  gres=gpu:1: "" # and this
+
+---
+# DEFAULT parameters (Optional)
+name: "DEFAULT"   # MUST BE 'DEFAULT'
+
+# Implementation default parameters
+# Will be overwritten by named experiments.
+params:
+  # uni2
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI2
+  save_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/res_cluster/univ2_pt_full.pkl
+
+  save_analyse_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/res_cluster/univ2_analyse_full.pkl
+
+  file_paths: [ univ2_pt0, univ2_pt1, univ2_pt2, univ2_pt3, univ2_pt4, univ2_pt5, univ2_pt6, univ2_pt7, univ2_pt8 ]
+
+  # uni1
+  root_path_u1: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1 # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1 #
+  save_path_u1: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n/univ1_pt_full.pkl # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n\univ1_pt_full.pkl #
+
+  save_analyse_path_u1: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n/univ1_analyse_full.pkl # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\res_cluster\univ1_analyse_full.pkl #
+
+  file_paths_u1: [ univ1_pt0, univ1_pt1, univ1_pt2, univ1_pt3, univ1_pt4, univ1_pt5, univ1_pt6, univ1_pt7, univ1_pt8,
+                   univ1_pt9, univ1_pt10, univ1_pt11, univ1_pt12, univ1_pt13, univ1_pt14, univ1_pt15, univ1_pt16, univ1_pt17, univ1_pt18, univ1_pt19, univ1_pt20 ]
+
+  which: uni2
+---
+# Experiment 1
+name: "Data_Preparation"
+
+# Required: Can also be set in DEFAULT
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results  #    # location to save results in
+repetitions: 1    # number of times one set of parameters is run
+
+wandb:
+    project: Data_Preparation_UNI
+    group: alr
