@@ -173,7 +173,7 @@ class Exp_Main(Exp_Basic):
 
         return train_loss, trues_preds
 
-    def test(self, test_data, test_loader, test=0, inverse_scale=False, new=True):
+    def test(self, test_data, test_loader, test=0, inverse_scale=False):
         if test:
             print('loading model')
             # TODO load model
@@ -227,19 +227,15 @@ class Exp_Main(Exp_Basic):
                         'test_mape': mape, 'test_mspe': mspe, 'hvi': hvi})
 
         if inverse_scale:
-            if new:
-                preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
-                trues_inverse = np.stack([test_data.inverse_transform(x) for x in trues])
-            else:
-                preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
-                trues_inverse = np.stack([test_data.inverse_transform(x) for x in trues])
+            preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
+            trues_inverse = np.stack([test_data.inverse_transform(x) for x in trues])
 
             preds_inverse = preds_inverse.reshape(-1, preds_inverse.shape[-2], preds_inverse.shape[-1])
             trues_inverse = trues_inverse.reshape(-1, trues_inverse.shape[-2], trues_inverse.shape[-1])
 
             mae, mse, rmse, mape, mspe, hvi = metric(preds_inverse, trues_inverse)
             results.update({'real_test_mse': mse, 'real_test_mae': mae, 'real_test_rmse': rmse,
-                            'real_test_mape': mape, 'real_test_mspe': mspe, 'hvi': hvi})
+                            'real_test_mape': mape, 'real_test_mspe': mspe, 'real_test_hvi': hvi})
 
             trues_preds = list(zip(trues_inverse, preds_inverse))
 

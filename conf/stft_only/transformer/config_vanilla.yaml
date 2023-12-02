@@ -65,7 +65,7 @@ params:
 
   # data
   data: Traffic_Even_stft_only
-  data_path: univ1_pt1_even3_1000.pkl
+  data_path: univ1_pt1_even4_1000.pkl
   transform: None
 
 list:
@@ -104,7 +104,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Vanilla-Even-stft-v1
+    project: Vanilla-Even-stft-only-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

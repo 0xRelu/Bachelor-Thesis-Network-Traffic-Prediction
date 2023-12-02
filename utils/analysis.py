@@ -1,5 +1,4 @@
 import datetime
-import multiprocessing
 import os
 import pickle
 import random
@@ -7,32 +6,48 @@ import random
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from torch import float64, tensor
+from torch import tensor
 
-from utils.data_perperation import _list_milliseconds_only_sizes_not_np, split_list, split_dict, \
-    _list_milliseconds_only_sizes_torch, calculate_hurst_exponent, _split_tensor_gpu2
+from utils.data_perperation import _list_milliseconds_only_sizes_not_np, _split_tensor_gpu
 
 
-def visualize_flows(file_path, aggregation_time=1000, amount=20, min_length=500, only_tcp=True):
+def visualize_flows(file_path, aggr=1000, amount=20, filter_tcp=True, get_max_Load=0.0005):
     with open(file_path, 'rb') as f:
-        data = pickle.load(f)
+        data_flows = pickle.load(f)
 
-    if only_tcp:
-        data = {key: value for key, value in data.items() if key[0].startswith('TCP')}
+    keys = list(data_flows.keys())
 
-    data = list(data.values())
-    data = [x for x in data if len(x) >= min_length]
+    if filter_tcp:
+        keys = [k for k in keys if k[0].startswith('TCP')]
+        print(f"[+] Found {len(keys)} flows with filter tcp.")
 
-    random.shuffle(data)
-    data = data[:amount]
+    if get_max_Load is not None:
+        keys_load = [(k, sum([x[1] for x in data_flows[k]])) for k in keys]
+        keys_load = sorted(keys_load, key=lambda x: x[1], reverse=True)
+        max_load = keys_load[0][1] * get_max_Load
+        keys = [k[0] for k in keys_load if k[1] > max_load]
 
-    for f in data:
-        flow = _list_milliseconds_only_sizes_not_np(data_flow=f,
-                                                    aggregation_time=aggregation_time)  # returns [time in unix, bytes]
-        flow = [x[1] for x in flow]
-        plt.plot(flow, label="bytes")
-        plt.legend()
-        plt.show()
+    keys = keys[:amount]
+
+    for k in keys:
+        flow = torch.tensor([x[:2] for x in data_flows[k]], dtype=torch.float64)
+        start_time = int(flow[0, 0] * aggr)  # assumes packets are ordered
+        end_time = int(flow[-1, 0] * aggr) + 1
+        flow_series_bytes = torch.zeros(end_time - start_time + 1, dtype=torch.float64)
+        flow_series_time = torch.arange(start_time, end_time + 1, dtype=torch.float64)
+
+        packet_times = ((flow[:, 0] * aggr) - start_time).long()
+        flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
+        flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
+        flow_list = _split_tensor_gpu(flow_series_bytes, consecutive_zeros=500)
+
+        flow_list = [f for f in flow_list if f.shape[0] > 2 * 500]
+
+        for f in flow_list:
+            flow = [x[1] for x in f]
+            plt.plot(flow, label=k)
+            plt.legend()
+            plt.show()
 
 
 def _compare(new_file_path, old_file_path):
@@ -113,7 +128,7 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=50
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
         flow_series_split = torch.stack((torch.zeros(flow_series_bytes.shape[0], device=device), flow_series_bytes),
                                         dim=1)
-        flow_series_split = _split_tensor_gpu2(flow_series_split, consecutive_zeros)
+        flow_series_split = _split_tensor_gpu(flow_series_split, consecutive_zeros)
 
         ptm = []
         vtm = []
@@ -223,9 +238,9 @@ if __name__ == "__main__":
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_full.pkl'  # univ1_pt_n
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full.pkl'  # _test
 
-    # visualize_flows(path)
+    visualize_flows(path)
     # analyse_flows(path, save_analysis)
 
-    analysis_gpu(path, save_analysis, 1000)
+    # analysis_gpu(path, save_analysis, 1000)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

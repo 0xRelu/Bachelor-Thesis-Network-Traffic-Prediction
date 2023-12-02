@@ -10,7 +10,7 @@ job-name: STFTformer-Job-Traffic-Even    # this will be the experiment's name in
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 2500  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 60  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #  #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 50  # number of iterations per repetition
+iterations: 30  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -71,6 +71,8 @@ params:
   data_path: univ1_pt1_even3_1000.pkl  #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 list:
+  seg_len: [16, 16, 16, 16 ] # , 32, 48]
+  hop_len: [2, 2, 2, 2 ] # , 4, 6]
   pred_len: [ 96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
 
 #####################################################################################################################
@@ -84,8 +86,10 @@ params:
   model: STFTformer
 
   # Stft
-  seg_len: 10
-  overlap: 9
+  # seg_len: 10  # length of stft segments
+  # hop_len: 1  # distanz between stft segments
+  pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
+  model_name: Transformer  # name of the model
 
   # RLinear
   channel: 1 # number of channels

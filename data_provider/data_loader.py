@@ -729,7 +729,6 @@ class Dataset_Traffic_Even_stft_only(Dataset):
 
     def __read_data__(self):
         self.scaler = StandardScalerList()
-        self.scaler_y = StandardScalerList()  # for stft
 
         with open(os.path.join(self.root_path, self.data_path), 'rb') as f:
             data_raw: list[list] = pickle.load(f)  # returns list[list]
@@ -817,7 +816,7 @@ class Dataset_Traffic_Even_stft_only(Dataset):
         return len(self.index)  # len(self.data_x) - self.seq_len - self.pred_len + 1
 
     def inverse_transform(self, data):  # can only transform target not context/input!!!
-        return self.scaler_y.inverse_transform(data)
+        return self.scaler.inverse_transform(data)
 
 
 class Dataset_ETT_hour(Dataset):
