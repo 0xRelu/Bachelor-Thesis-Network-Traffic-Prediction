@@ -4,14 +4,14 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: DLinear-Job-Stft   # this will be the experiment's name in slurm
+job-name: STFT-RLinear-Job-   # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
-mem-per-cpu: 28000 # Optional - Cluster specific
+time: 80  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
 
@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results   # location to save results in C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results #   #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 50  # number of iterations per repetition
+iterations: 30  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,16 +35,19 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n # "" C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n #   #
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: "Not needed for now?"
   embed: timeF
+  stride: 100
+  transform: None
+  smooth_param: None
 
   # Forecasting task
-  # seq_len: 2000 # input sequence length
-  label_len: 100 # start token length
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
@@ -65,39 +68,43 @@ params:
   use_multi_gpu: 0 # check
 
   # data
-  data: Traffic_Even_Stft
+  data: Traffic_Even
   data_path: univ1_pt1_even3_1000.pkl
-  transform: None
 
 list:
-  smooth_param: [ '(10,9)', '(100, 90)', '(500, 450)',
-                  '(10,9)', '(100, 90)', '(500, 450)',
-                  '(10,9)', '(100, 90)', '(500, 450)',
-                  '(10,9)', '(100, 90)', '(500, 450)' ] # stft parameters: (segment_length, overlap)
-  seq_len: [ 2000, 200, 20,
-             2000, 200, 20,
-             2000, 200, 20,
-             2000, 200, 20 ] # ~ 2000
-  pred_len: [ 96, 96, 96,
-              192, 192, 192,
-              336, 336, 336,
-              720, 720, 720 ]
-  stride: [ 100, 10, 2,
-            100, 10, 2,
-            100, 10, 2,
-            100, 10, 2 ] # ~ 100
+  seg_len: [ 16, 16, 16, 16,
+             32, 32, 32, 32,
+             48, 48, 48, 48 ] # , 32, 48]
+  hop_len: [ 2, 2, 2, 2,
+             2, 2, 2, 2,
+             2, 2, 2, 2,] # , 4, 6]
+  pred_len: [ 96, 192, 336, 720,
+              96, 192, 336, 720,
+              96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
 
-###############################################   DLINEAR   ###############################################
+###############################################   RLINEAR   ###############################################
 ---
-# DLinear Experiment
-name: DLinear-Stft
+# RLinear Experiment
+name: STFTformer-RLinear
 
 params:
-  model_id: DLinear
-  model: DLinear
-  enc_in: 1 # number of channels
-  individual: False
+  # Basic
+  model_id: STFTformer
+  model: STFTformer
+
+  # Stft
+  # seg_len: 10  # length of stft segments
+  # hop_len: 1  # distanz between stft segments
+  pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
+  model_name: RLinear  # name of the model
+
+  channel: 1 # number of channels
+  individual: 0
+  dropout: 0.05
+  rev: 1
 
 wandb:
-    project: DLinear-Even-stft-v1
+    project: STFTformer-RLinear-v1
     group: alr
+    # sweep_id: new
+    # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

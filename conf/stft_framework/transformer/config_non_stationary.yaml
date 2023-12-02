@@ -4,14 +4,14 @@ name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: Informer-Job-Stft    # this will be the experiment's name in slurm
+job-name: STFT-Non-Stationary-Job    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 1000  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
-mem-per-cpu: 28000 # Optional - Cluster specific
+time: 800  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
 
@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results #  #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
-iterations: 50  # number of iterations per repetition
+iterations: 30  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,15 +35,18 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n #  #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
+  stride: 100
+  transform: None
+  smooth_param: None
 
   # Forecasting task
-  # seq_len: 2000 # input sequence length
-  label_len: 100 # start token length
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
   # pred_len: 30 # prediction sequence length
 
   # optimization
@@ -64,49 +67,50 @@ params:
   use_multi_gpu: 0
 
   # data
-  data: Traffic_Even_Stft
+  data: Traffic_Even
   data_path: univ1_pt1_even3_1000.pkl
-  transform: None
-
 
 list:
-  smooth_param: [ '(10,9)', '(100, 90)', '(500, 450)',
-                  '(10,9)', '(100, 90)', '(500, 450)',
-                  '(10,9)', '(100, 90)', '(500, 450)',
-                  '(10,9)', '(100, 90)', '(500, 450)' ] # stft parameters: (segment_length, overlap)
-  enc_in: [ 12, 102, 502,
-            12, 102, 502,
-            12, 102, 502,
-            12, 102, 502] # encoder input size because of different stft segment sizes this has to be adapted
-  seq_len: [ 2000, 200, 20,
-             2000, 200, 20,
-             2000, 200, 20,
-             2000, 200, 20 ] # ~ 2000
-  pred_len: [ 96, 96, 96,
-              192, 192, 192,
-              336, 336, 336,
-              720, 720, 720 ]
-  stride: [ 100, 10, 2,
-            100, 10, 2,
-            100, 10, 2,
-            100, 10, 2 ] # ~ 100
-
+  seg_len: [ 16, 16, 16, 16,
+             32, 32, 32, 32,
+             48, 48, 48, 48 ] # , 32, 48]
+  hop_len: [ 2, 2, 2, 2,
+             2, 2, 2, 2,
+             2, 2, 2, 2,] # , 4, 6]
+  pred_len: [ 96, 192, 336, 720,
+              96, 192, 336, 720,
+              96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
+  enc_in: [ 9, 9, 9, 9,
+            17, 17, 17, 17,
+            25, 25, 25, 25 ] # number of channels = (seg_len // 2) + 1
+  dec_in: [ 9, 9, 9, 9,
+            17, 17, 17, 17,
+            25, 25, 25, 25 ]
+  c_out: [ 9, 9, 9, 9,
+            17, 17, 17, 17,
+            25, 25, 25, 25 ]
 
 #####################################################################################################################
 ---
 # Vanilla Transformer Experiment
-name: Informer-Stft
+name: STFTformer-Non-stationary
 
 params:
   # Basic
-  model_id: Informer
-  model: Informer
+  model_id: STFTformer
+  model: STFTformer
+
+  # Stft
+  # seg_len: 10  # length of stft segments
+  # hop_len: 1  # distanz between stft segments
+  pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
+  model_name: Non-Stationary  # name of the model
 
   # Former specific
   embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
   # enc_in: 1 # encoder input size
-  dec_in: 1 # decoder input size
-  c_out: 1 # output size
+  # dec_in: 1 # decoder input size
+  # c_out: 1 # output size
   d_model: 512 # dimension of model
   n_heads: 8 # num of heads
   e_layers: 2 # num of encoder layers
@@ -121,8 +125,12 @@ params:
   output_attention: False # whether to output attention in encoder
   do_predict: False # whether to predict unseen future data
 
+  # de-stationary projector params
+  p_hidden_dims: [128, 128]
+  p_hidden_layers: 2
+
 wandb:
-    project: Informer-Even-stft-v1
+    project: STFTformer-Non-Stationary-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

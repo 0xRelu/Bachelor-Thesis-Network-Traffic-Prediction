@@ -2,7 +2,7 @@ import copy
 
 import torch
 import torch.nn as nn
-from models import Transformer, RLinear, Autoformer, Informer, DLinear, NLinear, RMLP, Linear, PatchTST
+from models import Transformer, RLinear, Informer, DLinear, NLinear, Linear, PatchTST
 from models.ns_models import ns_Transformer
 from utils.tools import dotdict
 import torch.nn.functional as F
@@ -78,9 +78,9 @@ class Model(nn.Module):
         x_mark_dec = self.create_time(x_mark_dec)
 
         def _run_model():
-            if 'RLinear' in self.args.model:
-                outputs = self.model(x_enc, x_dec[:, -self.args.pred_len:])
-            elif 'Linear' in self.args.model or 'TST' in self.args.model:
+            if 'RLinear' in self.model_name:
+                outputs = self.model(x_enc, x_dec[:, -self.pred_len:])
+            elif 'Linear' in self.model_name or 'TST' in self.model_name:
                 outputs = self.model(x_enc)
             else:
                 outputs = self.model(x_enc, x_mark_enc, x_dec, x_mark_dec)
