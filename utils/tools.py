@@ -80,23 +80,6 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 
-def parse_unix_time(vector: np.ndarray) -> np.ndarray:
-    datetime_components = np.empty((len(vector), 8), dtype=np.int32)
-    for i, dt in enumerate(vector):
-        dt_obj = datetime.datetime.fromtimestamp(dt)
-
-        datetime_components[i, 0] = dt_obj.year
-        datetime_components[i, 1] = dt_obj.month
-        datetime_components[i, 2] = dt_obj.day
-        datetime_components[i, 3] = dt_obj.hour
-        datetime_components[i, 4] = dt_obj.minute
-        datetime_components[i, 5] = dt_obj.second
-        datetime_components[i, 6] = dt_obj.microsecond // 1000  # micro = 123456 // 1000 = 123
-        datetime_components[i, 7] = dt_obj.microsecond % 1000  # micro = 123456 % 1000 = 456
-
-    return datetime_components
-
-
 def ema_smoothing(data: np.ndarray, a: float = 1) -> np.ndarray:
     for i in range(1, len(data)):
         data[i] = a * data[i - 1] + (1 - a) * data[i]

@@ -1,14 +1,12 @@
 import datetime
 import os
 import pickle
-import random
 
-import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from torch import tensor
 
-from utils.data_perperation import _list_milliseconds_only_sizes_not_np, _split_tensor_gpu
+from utils.data_preparation_tools import split_tensor_gpu
 
 
 def visualize_flows(file_path, aggr=1000, amount=20, filter_tcp=True, get_max_Load=0.0005):
@@ -39,7 +37,7 @@ def visualize_flows(file_path, aggr=1000, amount=20, filter_tcp=True, get_max_Lo
         packet_times = ((flow[:, 0] * aggr) - start_time).long()
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
         flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
-        flow_list = _split_tensor_gpu(flow_series_bytes, consecutive_zeros=500)
+        flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=500)
 
         flow_list = [f for f in flow_list if f.shape[0] > 2 * 500]
 
@@ -128,7 +126,7 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=50
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
         flow_series_split = torch.stack((torch.zeros(flow_series_bytes.shape[0], device=device), flow_series_bytes),
                                         dim=1)
-        flow_series_split = _split_tensor_gpu(flow_series_split, consecutive_zeros)
+        flow_series_split = split_tensor_gpu(flow_series_split, consecutive_zeros)
 
         ptm = []
         vtm = []
@@ -173,57 +171,6 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=50
         flow_data[i][-1] = 0 if data_flows_keys[i][0].startswith('TCP') else 1
 
     flow_data = torch.tensor(flow_data)
-
-    # save results
-    with open(save_path, 'wb') as f:
-        pickle.dump(flow_data, f)
-
-
-def analyse_flows(file_path: str, save_path: str, aggr=1000):
-    open_path = file_path if not os.path.exists(save_path) else save_path
-
-    with open(open_path, 'rb') as f:
-        data = pickle.load(f)
-
-    if os.path.exists(save_path):
-        return
-
-    # --- flow general data
-    flow_data = []
-
-    for key, flow in data.items():
-        byte_series = [x[1] for x in flow]
-
-        packet_count = len(flow)
-        byte_count = sum(byte_series)  # bytes per flow
-
-        flow_series = _list_milliseconds_only_sizes_not_np(flow, aggr)
-        flow_series_bytes = [x[1] for x in flow_series]
-
-        max_value = max(flow_series_bytes)
-        mean_ = np.mean(flow_series_bytes)
-        var_ = np.var(flow_series_bytes)
-
-        ptm = max_value / mean_
-        vtm = var_ / mean_
-        b = (var_ - mean_) / (mean_ + var_)
-        a = ((np.sqrt(len(flow_series_bytes) + 1) * vtm - np.sqrt(len(flow_series_bytes) - 1)) /
-             ((np.sqrt(len(flow_series_bytes) + 1) - 2) * vtm + np.sqrt(len(flow_series_bytes) - 1)))
-
-        if len(flow) < 2:
-            duration = 0
-        else:
-            start_time = datetime.datetime.fromtimestamp(flow[0][0])
-            end_time = datetime.datetime.fromtimestamp(flow[-1][0])
-            duration = end_time - start_time
-
-            duration = duration.total_seconds()
-
-        nFlow_data = ['TCP' if key[0].startswith("TCP") else 'UDP', packet_count, byte_count, duration, ptm, vtm, b, a]
-        flow_data.append(nFlow_data)
-
-        if len(flow_data) % 100 == 0:
-            print(f"[+] Finished {len(flow_data)} / {len(data)} : {len(flow_data) / len(data)}")
 
     # save results
     with open(save_path, 'wb') as f:

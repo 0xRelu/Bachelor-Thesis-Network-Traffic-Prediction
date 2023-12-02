@@ -1,25 +1,15 @@
 import abc
-import concurrent.futures
 import csv
-import itertools
-import math
-import multiprocessing
-import os
 import pickle
 
 import datetime
 import random
-import sys
 from statistics import mean
 
-import numpy
 import numpy as np
 import torch
-from numpy import ndarray
 
-from utils.data_perperation import split_list, _list_milliseconds_only_sizes_, _list_milliseconds_only_sizes_not_np, \
-    _split_flow_n, _list_milliseconds_, parse_pcap_to_list_n, \
-    _split_flow_n2, create_test_from_full, _split_flow_tensor, _split_tensor_gpu
+from utils.data_preparation_tools import parse_pcap_to_list_n, split_tensor_gpu
 
 
 class DataTransformerBase:
@@ -58,214 +48,6 @@ class DataTransformerBase:
         raise NotImplementedError
 
 
-class DatatransformerEven(DataTransformerBase):
-    def __init__(self, file_path: str, max_flows: int, seq_len: int, label_len: int, pred_len: int,
-                 filter_size: int = 4,
-                 step_size=1, aggregation_time: int = 1000, processes=4):
-        self.max_flows = max_flows
-        self.seq_len = seq_len
-        self.aggregation_time = aggregation_time
-        self.processes = processes
-
-        if label_len > seq_len:
-            raise AttributeError("Label length has to be smaller then the sequence length")
-
-        self.label_len = label_len
-        self.pred_len = pred_len
-        self.step_size = step_size
-        self.filter_size = filter_size
-
-        super().__init__(file_path)
-
-    def _get_data(self, data_flows: list[ndarray]):
-        print("[+] Starting data preparation...")
-
-        if self.seq_len is None or self.pred_len is None:
-            raise AttributeError("Seq_len and pred_len have to be not None")
-
-        data_flows = split_list(data_flows, self.processes)
-
-        params = [(data_flows[flow], self.seq_len, self.label_len,
-                   self.pred_len, self.step_size, self.aggregation_time, self.filter_size, flow) for flow in
-                  range(len(data_flows))]
-
-        process_pool = multiprocessing.Pool(processes=self.processes)
-        results = process_pool.starmap(self.__create_sequences__, params)
-        process_pool.close()
-        process_pool.join()
-
-        flow_seq = []
-        for res in results:
-            flow_seq += res
-
-        flows = {
-            'shape': (self.seq_len, self.label_len, self.pred_len),
-            'data': flow_seq,
-        }
-
-        print(f"[+] Found sequences: {sum([len(x[0]) for x in flow_seq])} in {len(flow_seq)} flows sequences")
-        return flows
-
-    @staticmethod
-    def __create_sequences__(data_flows: list[np.ndarray], seq_len: int, label_len: int, pred_len: int, step_size: int,
-                             aggregation_time: int, filter_size: int, flow_id: int):
-        seq = []
-        counter = 0
-
-        for flow in data_flows:
-            flow = _list_milliseconds_only_sizes_(data_flow=flow, aggregation_time=aggregation_time)  # aggregate
-
-            only_sizes = flow[:, 1]
-            without_zeros = only_sizes[np.nonzero(only_sizes)]
-            mean = np.mean(without_zeros)
-            var = np.var(without_zeros)
-            length = len(without_zeros)
-
-            flow_seq = []
-            for i in range(0, len(flow) - seq_len - pred_len, step_size):  # len(flow)
-                potential_seq = flow[i: i + seq_len + pred_len]
-                zero_element = 0  # scaler.zero_element()
-
-                if np.sum(potential_seq[:seq_len, 1] != zero_element) < filter_size:
-                    continue
-
-                flow_seq.append(potential_seq)
-
-            if len(flow_seq) != 0:
-                seq.append((flow_seq, mean, var, length))
-            counter += 1
-            print(f"[+] {counter} / {len(data_flows)} | Found {len(flow_seq)} sequences | process id {flow_id}")
-        return seq
-
-
-class DatatransformerEvenSimple(DataTransformerBase):
-    def __init__(self, file_path: str, min_length: int = 100, aggregation_time: int = 1000, processes: int = 4):
-        self.aggregation_time = aggregation_time
-        self.processes = processes
-        self.min_length = min_length
-
-        super().__init__(file_path)
-
-    def _get_data(self, data_flows: list[ndarray]):
-        print("[+] Starting data preparation...")
-
-        random.shuffle(data_flows)  # tries to balance load
-        data_flows = split_list(data_flows, self.processes)
-
-        print(f"[+] Starting {self.processes} processes containing: {[len(s) for s in data_flows]}")
-
-        params = [(data_flows[flow], self.aggregation_time, flow, self.min_length) for flow in range(len(data_flows))]
-
-        process_pool = multiprocessing.Pool(processes=self.processes)
-        results = process_pool.starmap(self.__create_sequences__, params)
-        process_pool.close()
-        process_pool.join()
-
-        flow_seq = []
-        for res in results:
-            flow_seq += res
-
-        print(f"[+] Found sequences: {len(flow_seq)} in {sum(len(x) for x in data_flows)} flows sequences")
-
-        print("[+] Parse timestamp...")
-        flow_seq = list(
-            map(lambda x: [datetime.datetime.fromtimestamp(x[0]).strftime('%Y-%m-%d %H:%M:%S.%f'), x[1]], flow_seq))
-
-        flow_seq = [['date', 'bytes']] + flow_seq
-        return flow_seq
-
-    @staticmethod
-    def __create_sequences__(data_flows: list[np.ndarray], aggregation_time: int, flow_id: int, min_length: int = 336):
-        res_data_flows = []
-        counter = 0
-        skipped_counter = 0
-
-        for flow in data_flows:
-            flow = _list_milliseconds_only_sizes_not_np(data_flow=flow, aggregation_time=aggregation_time)  # aggregate
-
-            if len(flow) < 8 * min_length:
-                counter += 1
-                skipped_counter += 1
-                continue
-
-            flow = _split_flow_n(split_flow=flow, split_at=min_length, min_length=8 * min_length,
-                                 aggregation_time=aggregation_time)  # cleanup
-            res_data_flows.extend(flow)
-
-            if counter % 10 == 0:
-                print(
-                    f"[+] Found {len(res_data_flows)} in {counter / len(data_flows)} % | Skipped: {skipped_counter} | process id {flow_id}")
-            counter += 1
-
-        return res_data_flows
-
-
-class DatatransformerEvenSimple2(DataTransformerBase):
-    def __init__(self, file_path: str, min_length: int = 100, aggregation_time: int = 1000, processes: int = 4):
-        self.aggregation_time = aggregation_time
-        self.processes = processes
-        self.min_length = min_length
-
-        super().__init__(file_path)
-
-    def _get_data(self, data_flows: dir):
-        print("[+] Starting data preparation...")
-
-        # random.shuffle(data_flows)  # tries to balance load
-        data_flows = data_flows.values()
-        data_flows = split_list(data_flows, self.processes)
-
-        print(f"[+] Starting {self.processes} processes containing: {[len(s) for s in data_flows]}")
-
-        params = [(data_flows[flow], self.aggregation_time, flow, self.min_length) for flow in range(len(data_flows))]
-
-        process_pool = multiprocessing.Pool(processes=self.processes)
-        results = process_pool.starmap(self.__create_sequences__, params)
-        process_pool.close()
-        process_pool.join()
-
-        flow_seq = []
-        for res in results:
-            flow_seq += res
-
-        print(f"[+] Found sequences: {len(flow_seq)} in {sum(len(x) for x in data_flows)} flows sequences")
-        return flow_seq
-
-    @staticmethod
-    def __create_sequences__(data_flows: list[list], aggregation_time: int, flow_id: int, min_length: int):
-        res_data_flows = []
-        counter = 0
-
-        def mapping(x):
-            time = datetime.datetime.fromtimestamp(x[0])
-            return [
-                [time.month, time.day, time.weekday(), time.hour, time.minute, time.second, time.microsecond // 1000,
-                 time.microsecond % 1000],
-                x[1:]]
-
-        for flow in data_flows:
-            flow = _list_milliseconds_only_sizes_not_np(data_flow=flow,
-                                                        aggregation_time=aggregation_time)  # returns [time in unix, bytes]
-            flow = _split_flow_n2(split_flow=flow, split_at=min_length)
-            flow = list(filter(lambda x: len(x) > min_length * 2, flow))  # filter all smaller than 1000 milliseconds
-            # flow = list(map(mapping, flow))
-            res_data_flows.extend(flow)
-
-            if counter % 1000 == 0:
-                print(
-                    f"[+] Found {len(res_data_flows)} in {counter / len(data_flows)} % | Splitted Flow Length Mean {mean([0] + [len(x) for x in res_data_flows])} | process id {flow_id}")
-            counter += 1
-
-        print(
-            f"[+] Finally found {len(res_data_flows)} | Splitted Flow Length Mean {mean([0] + [len(x) for x in res_data_flows])} | process id {flow_id} | Loading timestamps....")
-
-        for i in range(len(res_data_flows)):
-            res_data_flows[i] = list(map(mapping, res_data_flows[i]))
-
-        print(f"[++] Finished process with id {flow_id}")
-        return res_data_flows
-
-
 class DatatransformerEvenSimpleGpu(DataTransformerBase):
     def __init__(self, file_path: str, min_length: int = 500, aggr: int = 1000):
         self.aggr = aggr
@@ -282,12 +64,13 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
             print(f"[+] Found {len(keys)} flows with filter tcp.")
 
         if filter_min_length is not None:
-            keys = [k for k in keys if ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) >= filter_min_length]
+            keys = [k for k in keys if
+                    ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) >= filter_min_length]
 
         if get_max_Load is not None:
             keys_load = [(k, 0 if ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) < 1 else
-                            sum([x[1] for x in data_flows[k]]) / ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr))) for k
-                                in keys]
+            sum([x[1] for x in data_flows[k]]) / ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr))) for k
+                         in keys]
             bef = sum([k[1] for k in keys_load])
             keys_load = sorted(keys_load, key=lambda x: x[1], reverse=True)
             keys_load = keys_load[:int(len(keys_load) * get_max_Load)]
@@ -328,7 +111,7 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
             packet_times = ((flow[:, 0] * self.aggr) - start_time).long()
             flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
             flow_series_bytes = torch.stack((flow_series_time / self.aggr, flow_series_bytes), dim=1)
-            flow_series_bytes = _split_tensor_gpu(flow_series_bytes, consecutive_zeros=self.min_length)
+            flow_series_bytes = split_tensor_gpu(flow_series_bytes, consecutive_zeros=self.min_length)
             flow_series_bytes = [f.to('cpu') for f in flow_series_bytes if f.shape[0] > 2 * self.min_length]
             flow_seq.extend(flow_series_bytes)
 

@@ -11,13 +11,7 @@ data_dict = {
     'ETTh2': Dataset_ETT_hour,
     'ETTm1': Dataset_ETT_minute,
     'ETTm2': Dataset_ETT_minute,
-    'Traffic_Single': Dataset_Traffic_Singe_Packets,
-    'Traffic_Even': Dataset_Traffic_Even,
-    'Traffic_Even_N': Dataset_Traffic_Even_n,
-    'Traffic_Even_N2': Dataset_Traffic_Even_n2,
-    'Traffic_Even_Stft': Dataset_Traffic_Even_nstft,
-    'Traffic_Even_stft_only': Dataset_Traffic_Even_stft_only,
-    'Test': Dataset_Test,
+    'Traffic_Even': Dataset_Traffic_Even_n,
     'custom': Dataset_Custom,
 }
 
