@@ -67,7 +67,7 @@ params:
   use_multi_gpu: 0
 
   # data
-  data: Traffic_Even_N2
+  data: Traffic_Even
   data_path: univ1_pt1_even3_1000.pkl
 
 list:

@@ -2,8 +2,7 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 
 from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Dataset_Custom, Dataset_Pred, \
-    Dataset_Traffic_Singe_Packets, Dataset_Traffic_Even, Dataset_Test, Dataset_Traffic_Even_n, Dataset_Traffic_Even_n2, \
-    Dataset_Traffic_Even_nstft, Dataset_Traffic_Even_stft_only
+    Dataset_Traffic_Even
 from torch.utils.data import DataLoader
 
 data_dict = {
@@ -11,7 +10,7 @@ data_dict = {
     'ETTh2': Dataset_ETT_hour,
     'ETTm1': Dataset_ETT_minute,
     'ETTm2': Dataset_ETT_minute,
-    'Traffic_Even': Dataset_Traffic_Even_n,
+    'Traffic_Even': Dataset_Traffic_Even,
     'custom': Dataset_Custom,
 }
 

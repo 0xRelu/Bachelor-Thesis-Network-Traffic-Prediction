@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #  #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 30  # number of iterations per repetition
+iterations: 5  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -67,8 +67,8 @@ params:
   use_multi_gpu: 0
 
   # data
-  data: Traffic_Even_N2
-  data_path: univ1_pt1_even3_1000.pkl  #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  data: Traffic_Even
+  data_path: univ1_pt1_even3_1000.pkl
 
 list:
   seg_len: [16, 16, 16, 16 ] # , 32, 48]
@@ -89,7 +89,7 @@ params:
   # seg_len: 10  # length of stft segments
   # hop_len: 1  # distanz between stft segments
   pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
-  model_name: Transformer  # name of the model
+  model_name: RLinear  # name of the model
 
   # RLinear
   channel: 1 # number of channels
