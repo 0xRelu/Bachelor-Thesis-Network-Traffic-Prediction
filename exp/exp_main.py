@@ -1,21 +1,13 @@
-import sys
-
-from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from models import Informer, Autoformer, Transformer, DLinear, Linear, NLinear, PatchTST, TransformerPytorch, MLPLinear, \
-    RLinear, RMLP, TestLinear, STFTformer
+from models import Informer, Transformer, DLinear, Linear, NLinear, PatchTST, \
+    RLinear, STFTformer
 from models.ns_models import ns_Transformer
 from utils.tools import adjust_learning_rate
 from utils.metrics import metric
-
 import torch
 import torch.nn as nn
-from torch import optim
 from torch.optim import lr_scheduler
-
-import os
 import time
-
 import warnings
 import numpy as np
 
@@ -28,21 +20,17 @@ class Exp_Main(Exp_Basic):
 
     def _build_model(self):
         model_dict = {
-            'Autoformer': Autoformer,
             'Transformer': Transformer,
-            'TransformerPytorch': TransformerPytorch,
             'Informer': Informer,
             'Non-Stationary': ns_Transformer,
             'DLinear': DLinear,
             'NLinear': NLinear,
             'RLinear': RLinear,
-            'RMLP': RMLP,
             'Linear': Linear,
-            'MLPLinear': MLPLinear,
             'PatchTST': PatchTST,
             'STFTformer': STFTformer
-
         }
+
         model = model_dict[self.args.model].Model(self.args).float()
 
         if self.args.use_multi_gpu and self.args.use_gpu:
