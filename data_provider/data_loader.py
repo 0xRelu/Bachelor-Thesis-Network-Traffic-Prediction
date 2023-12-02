@@ -695,6 +695,131 @@ class Dataset_Traffic_Even_nstft(Dataset):
         return self.scaler_y.inverse_transform(data)
 
 
+class Dataset_Traffic_Even_stft_only(Dataset):
+    def __init__(self, root_path, flag='train', size=None,
+                 features='S', data_path='univ1_pt1_even.csv',
+                 target='OT', scale=True, timeenc=0, freq='h', stride=100, transform=None, smooth_param=None):
+        # size [seq_len, label_len, pred_len]
+        # info
+        if size == None:
+            self.seq_len = 24 * 4 * 4
+            self.label_len = 24 * 4
+            self.pred_len = 24 * 4
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
+        # init
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.set_type = type_map[flag]
+
+        self.features = features
+        self.target = target
+        self.scale = scale
+        self.timeenc = timeenc
+        self.freq = freq
+        self.transform = transform
+        self.smooth_param = smooth_param  # gaussian, uniform and ema
+        self.stride = stride
+
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def __read_data__(self):
+        self.scaler = StandardScalerList()
+        self.scaler_y = StandardScalerList()  # for stft
+
+        with open(os.path.join(self.root_path, self.data_path), 'rb') as f:
+            data_raw: list[list] = pickle.load(f)  # returns list[list]
+
+        print(f"[+] Loaded {len(data_raw)} flows.")
+
+        f = []
+
+        indexes = []  # sequences
+
+        data_stamps = []
+        data = []
+
+        for i in range(len(data_raw)):
+            if len(data_raw[i]) < self.seq_len + self.pred_len:
+                continue
+
+            data_stamp = np.array(list(map(lambda x: x[0], data_raw[i])))
+            data_bytes_flow = np.array(list(map(lambda x: x[1], data_raw[i]))).reshape(-1, 1)
+
+            self.seg_len, self.seg_overlap = tuple(ast.literal_eval(self.smooth_param))
+            # stft
+            stft_f, stft_time, data_bytes_flow = stft(data_bytes_flow.flatten(), nperseg=self.seg_len,
+                                                      noverlap=self.seg_overlap, boundary=None)
+            data_bytes_flow = data_bytes_flow.transpose()
+
+            if len(data_bytes_flow) < self.seq_len + self.pred_len:
+                continue
+
+            data_bytes_flow = np.concatenate((data_bytes_flow.real, data_bytes_flow.imag), axis=1)
+            data_stamp = data_stamp[stft_time.astype(int).tolist()]
+
+            indexes.append([[len(data), j] for j in range(len(data_bytes_flow) - self.seq_len - self.pred_len)])
+            f.append(stft_f)
+
+            data.append(data_bytes_flow)
+            data_stamps.append(data_stamp)
+
+        print(f"[+] Found {sum([len(x) for x in data])} sequences in {len(data_raw)} flows.")
+        # data_stamps = np.array(data_stamps)
+        # data = np.stack(data)
+
+        assert len(data_stamps) == len(data)
+
+        splitted_index = split_by(indexes, [0.7, 0.1, 0.2])
+        assert len(splitted_index) == 3
+        border1s = [splitted_index[i][0][0][0] for i in range(len(splitted_index))]
+        border2s = [splitted_index[i][-1][0][0] + 1 for i in
+                    range(len(splitted_index))]  # +1 because we also want the content of the key
+        self.border1 = border1s[self.set_type]
+        self.border2 = border2s[self.set_type]
+
+        if self.scale:
+            train_data = data[border1s[0]:border2s[0]]
+            self.scaler.fit(train_data)
+            data = self.scaler.transform(data)
+
+        self.data_x = data[self.border1: self.border2]
+        self.data_y = data[self.border1: self.border2]
+        self.data_stamp_x = data_stamps[self.border1: self.border2]
+        self.data_stamp_y = data_stamps[self.border1: self.border2]
+
+        indexes = [(a[0] - indexes[self.border1][0][0], a[1]) for a in
+                   itertools.chain(*indexes[self.border1: self.border2])]
+        self.index = [x for i, x in enumerate(indexes) if i % self.stride == 0]
+
+        self.f = f[self.border1: self.border2]
+
+    def __getitem__(self, index):
+        index = self.index[index]
+
+        s_begin = index[1]
+        s_end = s_begin + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end = r_begin + self.label_len + self.pred_len
+
+        seq_x = self.data_x[index[0]][s_begin:s_end]
+        seq_y = self.data_y[index[0]][r_begin:r_end]
+        seq_x_mark = self.data_stamp_x[index[0]][s_begin:s_end]
+        seq_y_mark = self.data_stamp_y[index[0]][r_begin:r_end]
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+    def __len__(self):
+        return len(self.index)  # len(self.data_x) - self.seq_len - self.pred_len + 1
+
+    def inverse_transform(self, data):  # can only transform target not context/input!!!
+        return self.scaler_y.inverse_transform(data)
+
+
 class Dataset_ETT_hour(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',

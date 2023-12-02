@@ -282,7 +282,7 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
         data_flows = list(data_flows.values())
 
         for i in range(len(data_flows)):
-            data_flows[i] = torch.tensor([x[:2] for x in data_flows[i]], device=device)
+            data_flows[i] = torch.tensor([x[:2] for x in data_flows[i]], device=device, dtype=torch.float64)
 
         flow_seq = []
 
@@ -291,12 +291,12 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
         for flow in data_flows:
             start_time = int(flow[0, 0] * self.aggr)  # assumes packets are ordered
             end_time = int(flow[-1, 0] * self.aggr) + 1
-            flow_series_bytes = torch.zeros(end_time - start_time + 1, device=device)
-            flow_series_time = torch.arange(start_time, end_time + 1, device=device)
+            flow_series_bytes = torch.zeros(end_time - start_time + 1, device=device, dtype=torch.float64)
+            flow_series_time = torch.arange(start_time, end_time + 1, device=device, dtype=torch.float64)
 
             packet_times = ((flow[:, 0] * self.aggr) - start_time).long()
             flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
-            flow_series_bytes = torch.stack((flow_series_time, flow_series_bytes), dim=1)
+            flow_series_bytes = torch.stack((flow_series_time / self.aggr, flow_series_bytes), dim=1)
             flow_series_bytes = _split_tensor_gpu(flow_series_bytes, consecutive_zeros=self.min_length)
 
             flow_seq.extend(flow_series_bytes)
@@ -308,14 +308,22 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
 
         print(f"[+] Found sequences: {len(flow_seq)} in {sum(len(x) for x in data_flows)} flows sequences. Parsing timestamps....")
 
-        def mapping(x):
-            time = datetime.datetime.fromtimestamp(x[0].item())
-            return [
-                [time.month, time.day, time.weekday(), time.hour, time.minute, time.second, time.microsecond // 1000,
-                 time.microsecond % 1000],
-                x[1:].tolist()]
+        def mapping2(time):
+            return [time.month, time.day, time.weekday(), time.hour, time.minute, time.second, time.microsecond // 1000,
+                    time.microsecond % 1000]
 
-        flow_seq = [list(map(mapping, x)) for x in flow_seq]
+        def mapping(x):
+            time = datetime.datetime.fromtimestamp(x[0, 0].item())
+            time_in_tensor = [mapping2(time + datetime.timedelta(milliseconds=t_d)) for t_d in range(x.shape[0])]
+            features = x[:, 1:].tolist()
+
+            assert len(time_in_tensor) == len(features)
+
+            combined = list(zip(time_in_tensor, features))
+            combined = [list(pair) for pair in combined]
+            return combined
+
+        flow_seq = [mapping(x) for x in flow_seq]
 
         return flow_seq
 
@@ -498,9 +506,9 @@ if __name__ == "__main__":
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     # _create_split_flow_files()
-    create_test_from_full(path, test_path, 'TCP', 50, False)
+    create_test_from_full(path, test_path, 'TCP', 1000, True)
 
     # __save_even_new2__(test_path, test_save_path, aggregation_time)
-    # _save_even_gpu(test_path, test_save_path, aggr_time=aggregation_time)
+    _save_even_gpu(test_path, test_save_path, aggr_time=aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

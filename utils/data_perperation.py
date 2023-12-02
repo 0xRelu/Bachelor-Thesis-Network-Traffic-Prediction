@@ -385,7 +385,7 @@ def _split_flow_tensor(split_flow: tensor, consecutive_zeros: int):
     return splitted_list
 
 
-def _split_tensor_gpu(split_flow, consecutive_zeros):
+def _split_tensor_gpu_old(split_flow, consecutive_zeros):
     zero_indices = torch.nonzero(split_flow[:, 1] == 0).view(-1)
 
     if len(zero_indices) == 0:
@@ -414,7 +414,7 @@ def _split_tensor_gpu(split_flow, consecutive_zeros):
     return splitted_list
 
 
-def _split_tensor_gpu2(tensor_, consecutive_zeros):
+def _split_tensor_gpu(tensor_, consecutive_zeros):
     # step 1: identify Zero Sequences
     # create a mask of zeros and find the difference between consecutive elements
     is_zero = tensor_[:, 1] == 0
