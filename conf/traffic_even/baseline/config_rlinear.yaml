@@ -41,7 +41,7 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: "Not needed for now?"
   embed: timeF
-  stride: 100
+  seq_stride: 100
   transform: None
   smooth_param: None
 
@@ -69,7 +69,7 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
+  data_path: univ1_pt1_even3_1000.pkl
 
 list:
   pred_len: [ 96, 192, 336, 720 ]

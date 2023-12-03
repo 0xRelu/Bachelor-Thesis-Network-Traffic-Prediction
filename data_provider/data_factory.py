@@ -45,7 +45,7 @@ def data_provider(args, flag, collate_fn=None):
         target=args.target,
         timeenc=timeenc,
         freq=freq,
-        stride=args.stride,
+        stride=args.seq_stride,
         transform=args.transform,
         smooth_param=args.smooth_param
     )
