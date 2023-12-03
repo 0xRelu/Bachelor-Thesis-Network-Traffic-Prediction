@@ -67,7 +67,7 @@ class Model(nn.Module):
         return x
 
     def create_time(self, x_mark):
-        max_ = 1 + (x_mark.shape[1] - self.seg_len) // self.hop_len
+        max_ = (x_mark.shape[1] - self.seg_len) + 1
         return x_mark[:, :max_:self.hop_len]
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec):  # x_enc = (B,L,1), x_dec = (B,L2,1)
