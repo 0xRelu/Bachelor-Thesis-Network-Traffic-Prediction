@@ -1,15 +1,19 @@
 import datetime
 import os
 import pickle
+import random
 
+import numpy as np
 import torch
 from matplotlib import pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.stattools import acf
 from torch import tensor
-
+from statsmodels.sandbox.stats.runs import runstest_1samp
 from utils.data_preparation_tools import split_tensor_gpu
 
 
-def visualize_flows(file_path, aggr=1000, amount=20, filter_tcp=True, get_max_Load=0.0005):
+def visualize_flows(file_path, aggr=1000, consecutive_zeros=500, amount=20, filter_tcp=True, get_max_Load=None):
     with open(file_path, 'rb') as f:
         data_flows = pickle.load(f)
 
@@ -37,15 +41,65 @@ def visualize_flows(file_path, aggr=1000, amount=20, filter_tcp=True, get_max_Lo
         packet_times = ((flow[:, 0] * aggr) - start_time).long()
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
         flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
-        flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=500)
+        flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=consecutive_zeros)
 
-        flow_list = [f for f in flow_list if f.shape[0] > 2 * 500]
+        flow_list = [f for f in flow_list if f.shape[0] > 2 * consecutive_zeros]
 
         for f in flow_list:
             flow = [x[1] for x in f]
             plt.plot(flow, label=k)
             plt.legend()
             plt.show()
+
+
+def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, shuffle=True, min_length=100):
+    with open(file_path, 'rb') as f:
+        data_flows = pickle.load(f)
+
+    keys = list(data_flows.keys())
+
+    def calc_duration(x):
+        start = datetime.datetime.fromtimestamp(x[0][0])
+        end = datetime.datetime.fromtimestamp(x[-1][0])
+        return (end - start).total_seconds()
+
+    if filter_tcp:
+        keys = [k for k in keys if k[0].startswith('TCP')]
+        print(f"[+] Found {len(keys)} flows with filter tcp.")
+
+    if shuffle:
+        random.seed(122)
+        random.shuffle(keys)
+
+    if min_length is not None:
+        nkeys = []
+        i = 0
+        while len(nkeys) < amount:
+            dur = calc_duration(data_flows[keys[i]])
+            if min_length < dur < 3 * min_length:
+                nkeys.append(keys[i])
+            i += 1
+
+        keys = nkeys
+        print(f"[+] Found {len(keys)} flows with min length: {min_length}.")
+
+    keys = keys[:amount]
+
+    for k in keys:
+        flow = torch.tensor([x[:2] for x in data_flows[k]], dtype=torch.float64)
+        start_time = int(flow[0, 0] * aggr)  # assumes packets are ordered
+        end_time = int(flow[-1, 0] * aggr) + 1
+        flow_series_bytes = torch.zeros(end_time - start_time + 1, dtype=torch.float64)
+        packet_times = ((flow[:, 0] * aggr) - start_time).long()
+        flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
+
+        flow_series_bytes = flow_series_bytes.tolist()
+
+        plot_acf(flow_series_bytes, lags=range(1, min(1000, len(flow_series_bytes) - 1)), alpha=0.05, auto_ylims=True, zero=False)
+        plt.title("")
+        plt.xlabel('Lag')
+        plt.ylabel('Autocorrelation Coefficient')
+        plt.show()
 
 
 def _compare(new_file_path, old_file_path):
@@ -78,6 +132,10 @@ def getData(data_flows: tensor, only_tcp=True):
     vtm = data_flows[:, 4].mean()
     b = data_flows[:, 5].mean()
     a = data_flows[:, 6].mean()
+    p = data_flows[data_flows[:, 7] >= 0][:, 7].mean()
+    p_none = len(data_flows[data_flows[:, 7] < 0])
+
+    p_amount = data_flows[(data_flows[:, 7] <= 0.05) & (data_flows[:, 7] >= 0)]
 
     l01 = data_flows[data_flows[:, 2] < 0.1]
     l011 = data_flows[(0.1 <= data_flows[:, 2]) & (data_flows[:, 2] < 1)]
@@ -85,10 +143,11 @@ def getData(data_flows: tensor, only_tcp=True):
     l10100 = data_flows[(10 <= data_flows[:, 2]) & (data_flows[:, 2] < 100)]
     l100 = data_flows[data_flows[:, 2] >= 100]
 
-    print(f"ptm: {ptm}, vtm: {vtm}, b: {b}, a:{a}")
+    print(f"ptm: {ptm}, vtm: {vtm}, b: {b}, a:{a}, p:{p}|{len(p_amount) / len(data_flows)}|{p_none / len(data_flows)}")
     print(f"l01: {len(l01)}|{sum([x[1] for x in l01])}, l011: {len(l011)}|{sum([x[1] for x in l011])}, "
           f"l110: {len(l110)}|{sum([x[1] for x in l110])}, l10100: {len(l10100)}|{sum([x[1] for x in l10100])}, "
           f"l10100: {len(l100)}|{sum([x[1] for x in l100])}")
+    print(f"{len(l110) + len(l10100) + len(l100)}")
 
 
 def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=500, only_tcp=True):
@@ -127,6 +186,10 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=50
         flow_series_split = torch.stack((torch.zeros(flow_series_bytes.shape[0], device=device), flow_series_bytes),
                                         dim=1)
         flow_series_split = split_tensor_gpu(flow_series_split, consecutive_zeros)
+        _, p = runstest_1samp(flow_series_bytes.tolist(), correction=False)
+
+        if np.isnan(p):
+            p = -1
 
         ptm = []
         vtm = []
@@ -159,7 +222,7 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=50
 
         nFlow_data = [packet_count, byte_count.item(), duration, torch.tensor(ptm).mean().item(),
                       torch.tensor(vtm).mean().item(),
-                      torch.tensor(b).mean().item(), torch.tensor(a).mean().item(), 0, 0]
+                      torch.tensor(b).mean().item(), torch.tensor(a).mean().item(), p, 0, 0]
         flow_data.append(nFlow_data)
 
         if len(flow_data) % 1000 == 0:
@@ -185,9 +248,7 @@ if __name__ == "__main__":
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_full.pkl'  # univ1_pt_n
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full.pkl'  # _test
 
-    visualize_flows(path)
-    # analyse_flows(path, save_analysis)
-
-    # analysis_gpu(path, save_analysis, 1000)
-
+    # visualize_flows(path, aggr=100)
+    # visualize_acf(path, aggr=1000)
+    analysis_gpu(path, save_analysis, aggr=1000)
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

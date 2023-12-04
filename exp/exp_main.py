@@ -208,11 +208,11 @@ class Exp_Main(Exp_Basic):
         trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
         print('test shape:', preds.shape, trues.shape)
 
-        mae, mse, rmse, mape, mspe, hvi = metric(preds, trues)
-        print('mse:{}, mae:{}, rmse:{}'.format(mse, mae, rmse))
+        mae, mse, rmse, mape, mspe, hvi, nmse = metric(preds, trues)
+        print('mse:{}, mae:{}, rmse:{}, nmse:{}'.format(mse, mae, rmse, nmse))
 
         results.update({'test_mse': mse, 'test_mae': mae, 'test_rmse': rmse,
-                        'test_mape': mape, 'test_mspe': mspe, 'hvi': hvi})
+                        'test_mape': mape, 'test_mspe': mspe, 'hvi': hvi, 'nmse': nmse})
 
         if inverse_scale:
             preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
@@ -221,9 +221,9 @@ class Exp_Main(Exp_Basic):
             preds_inverse = preds_inverse.reshape(-1, preds_inverse.shape[-2], preds_inverse.shape[-1])
             trues_inverse = trues_inverse.reshape(-1, trues_inverse.shape[-2], trues_inverse.shape[-1])
 
-            mae, mse, rmse, mape, mspe, hvi = metric(preds_inverse, trues_inverse)
+            mae, mse, rmse, mape, mspe, hvi, nmse = metric(preds_inverse, trues_inverse)
             results.update({'real_test_mse': mse, 'real_test_mae': mae, 'real_test_rmse': rmse,
-                            'real_test_mape': mape, 'real_test_mspe': mspe, 'real_test_hvi': hvi})
+                            'real_test_mape': mape, 'real_test_mspe': mspe, 'real_test_hvi': hvi, 'real_test_nmse': nmse})
 
             trues_preds = list(zip(trues_inverse, preds_inverse))
 

@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #  #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 5  # number of iterations per repetition
+iterations: 1  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -69,7 +69,7 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even3_1000.pkl
+  data_path: univ1_pt1_even4_1000_filtered.pkl
 
 list:
   pred_len: [ 96, 192, 336, 720 ]

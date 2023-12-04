@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 
 def RSE(pred, true):
@@ -19,6 +20,12 @@ def MSE(pred, true):
     return np.mean((pred - true) ** 2)
 
 
+def NMSE(pred, true):
+    test = np.mean((pred - true) ** 2, axis=1) / np.var(true, axis=1)
+    test2 = np.sum(test > 1)
+    return np.mean(test)
+
+
 def RMSE(pred, true):
     return np.sqrt(MSE(pred, true))
 
@@ -37,7 +44,8 @@ def HVI(pred, true, interval=10):
         pred_peak_index = pred[i].argmax()
         pred_peak_value = pred[i, pred_peak_index]
 
-        true_peak_index = true[i, max(pred_peak_index - interval, 0): min(pred_peak_index + interval, true.shape[1])].argmax()
+        true_peak_index = true[i,
+                          max(pred_peak_index - interval, 0): min(pred_peak_index + interval, true.shape[1])].argmax()
         true_peak_value = true[i, true_peak_index]
 
         true_actual_peak_index = true[i].argmax()
@@ -55,5 +63,6 @@ def metric(pred, true):
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
     hvi = HVI(pred, true)
+    nmse = NMSE(pred, true)
 
-    return mae, mse, rmse, mape, mspe, hvi
+    return mae, mse, rmse, mape, mspe, hvi, nmse
