@@ -69,7 +69,7 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000_filtered.pkl
+  data_path: univ1_pt1_even4_long_1000.pkl
 
 list:
   seq_len: [ 600, 1200, 1800, 2400 ]

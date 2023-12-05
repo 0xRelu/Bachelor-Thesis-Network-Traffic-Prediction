@@ -68,7 +68,7 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000_filtered.pkl
+  data_path: univ1_pt1_even4_long_1000.pkl
 
 list:
   seg_len: [ 144, 144, 144, 144 ] # , 32, 48]

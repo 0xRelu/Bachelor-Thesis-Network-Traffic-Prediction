@@ -49,33 +49,34 @@ class DataTransformerBase:
 
 
 class DatatransformerEvenSimpleGpu(DataTransformerBase):
-    def __init__(self, file_path: str, min_length: int = 500, aggr: int = 1000):
+    def __init__(self, file_path: str, consecutive_zeros=500, min_length: int = 1000, aggr: int = 1000):
         self.aggr = aggr
         self.min_length = min_length
+        self.consecutive_zeros = consecutive_zeros
 
         super().__init__(file_path)
 
     @staticmethod
-    def _filter(data_flows: dict, aggr=1000, filter_tcp=True, filter_min_length=1000, get_max_Load=0.1, shuffle=12):
+    def _filter(data_flows: dict, filter_tcp=True, shuffle=12):
         keys = list(data_flows.keys())
 
         if filter_tcp:
             keys = [k for k in keys if k[0].startswith('TCP')]
             print(f"[+] Found {len(keys)} flows with filter tcp.")
 
-        if filter_min_length is not None:
-            keys = [k for k in keys if
-                    ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) >= filter_min_length]
-
-        if get_max_Load is not None:
-            keys_load = [(k, 0 if ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) < 1 else
-            sum([x[1] for x in data_flows[k]]) / ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr))) for k
-                         in keys]
-            bef = sum([k[1] for k in keys_load])
-            keys_load = sorted(keys_load, key=lambda x: x[1], reverse=True)
-            keys_load = keys_load[:int(len(keys_load) * get_max_Load)]
-            print(f"{sum([k[1] for k in keys_load]) / bef}")
-            keys = [k[0] for k in keys_load]
+        # if filter_min_length is not None:
+        #     keys = [k for k in keys if
+        #             ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) >= filter_min_length]
+        #
+        # if get_max_Load is not None:
+        #     keys_load = [(k, 0 if ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr)) < 1 else
+        #     sum([x[1] for x in data_flows[k]]) / ((data_flows[k][-1][0] * aggr) - (data_flows[k][0][0] * aggr))) for k
+        #                  in keys]
+        #     bef = sum([k[1] for k in keys_load])
+        #     keys_load = sorted(keys_load, key=lambda x: x[1], reverse=True)
+        #     keys_load = keys_load[:int(len(keys_load) * get_max_Load)]
+        #     print(f"{sum([k[1] for k in keys_load]) / bef}")
+        #     keys = [k[0] for k in keys_load]
 
         if shuffle is not None:
             random.seed(shuffle)
@@ -89,7 +90,7 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # random.shuffle(data_flows)  # tries to balance load
-        data_flows = self._filter(data_flows, filter_tcp=True, filter_min_length=None, get_max_Load=None, shuffle=12)
+        data_flows = self._filter(data_flows, filter_tcp=True, shuffle=12)
 
         print(f"[+] Found {len(data_flows)} allowed flows after filtering.")
 
@@ -106,13 +107,18 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
             start_time = int(flow[0, 0] * self.aggr)  # assumes packets are ordered
             end_time = int(flow[-1, 0] * self.aggr) + 1
             flow_series_bytes = torch.zeros(end_time - start_time + 1, device=device, dtype=torch.float64)
+
+            if flow_series_bytes.shape[0] < self.min_length:
+                counter += 1
+                continue
+
             flow_series_time = torch.arange(start_time, end_time + 1, device=device, dtype=torch.float64)
 
             packet_times = ((flow[:, 0] * self.aggr) - start_time).long()
             flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
             flow_series_bytes = torch.stack((flow_series_time / self.aggr, flow_series_bytes), dim=1)
-            flow_series_bytes = split_tensor_gpu(flow_series_bytes, consecutive_zeros=self.min_length)
-            flow_series_bytes = [f.to('cpu') for f in flow_series_bytes if f.shape[0] > 2 * self.min_length]
+            flow_series_bytes = split_tensor_gpu(flow_series_bytes, consecutive_zeros=self.consecutive_zeros)
+            flow_series_bytes = [f.to('cpu') for f in flow_series_bytes if f.shape[0] > self.min_length]
             flow_seq.extend(flow_series_bytes)
 
             if counter % 1000 == 0:
@@ -120,8 +126,8 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
                     f"[+] Found {len(flow_seq)} in {counter / len(data_flows)} % | Splitted Flow Length Mean {mean([0] + [len(x) for x in flow_seq])}")
             counter += 1
 
-        print(
-            f"[+] Found sequences: {len(flow_seq)} in {len(data_flows)} flows. Parsing timestamps....")
+        print(f"[+] Found sequences: {len(flow_seq)} in {len(data_flows)} flows. "
+              f"Real preds: {len([x for x in flow_seq if x.shape[0] > 2 * self.consecutive_zeros]) / len(flow_seq)} Parsing timestamps....")
 
         def mapping2(time):
             return [time.month, time.day, time.weekday(), time.hour, time.minute, time.second, time.microsecond // 1000,
@@ -138,7 +144,15 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
             combined = [list(pair) for pair in combined]
             return combined
 
-        flow_seq = [mapping(x) for x in flow_seq]
+        nFlow_seq = []
+
+        counter = 0
+        for x in flow_seq:
+            nFlow_seq.append(mapping(x))
+
+            if counter % 1000 == 0:
+                print(f"Parsed {counter / len(flow_seq)}")
+            counter += 1
 
         return flow_seq
 
@@ -158,7 +172,7 @@ def _create_split_flow_files():
 def _save_even_gpu(load_path: str, save_path: str, aggr_time: list):
     for j in aggr_time:
         save_path = save_path + f"_{j}.pkl"
-        data_transformer = DatatransformerEvenSimpleGpu(load_path, min_length=500, aggr=j)
+        data_transformer = DatatransformerEvenSimpleGpu(load_path, consecutive_zeros=2500, min_length=3500, aggr=j)
 
         data_transformer.save_python_object(save_path)
         print(f"[x] Finished aggr {j} and saved it in {save_path}")
@@ -169,10 +183,10 @@ def _save_even_gpu(load_path: str, save_path: str, aggr_time: list):
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_full.pkl'  # univ1_pt_n
-    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4'
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_long'
 
     test_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_n_test.pkl'
-    test_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even3_test'
+    test_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_long_test'
 
     aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 

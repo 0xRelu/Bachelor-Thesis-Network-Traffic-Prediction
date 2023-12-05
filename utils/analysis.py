@@ -13,7 +13,7 @@ from statsmodels.sandbox.stats.runs import runstest_1samp
 from utils.data_preparation_tools import split_tensor_gpu
 
 
-def visualize_flows(file_path, aggr=1000, consecutive_zeros=500, amount=20, filter_tcp=True, get_max_Load=None):
+def visualize_flows(file_path, aggr=1000, consecutive_zeros=3000, min_length=2500, amount=20, filter_tcp=True, shuffle=12):
     with open(file_path, 'rb') as f:
         data_flows = pickle.load(f)
 
@@ -23,11 +23,9 @@ def visualize_flows(file_path, aggr=1000, consecutive_zeros=500, amount=20, filt
         keys = [k for k in keys if k[0].startswith('TCP')]
         print(f"[+] Found {len(keys)} flows with filter tcp.")
 
-    if get_max_Load is not None:
-        keys_load = [(k, sum([x[1] for x in data_flows[k]])) for k in keys]
-        keys_load = sorted(keys_load, key=lambda x: x[1], reverse=True)
-        max_load = keys_load[0][1] * get_max_Load
-        keys = [k[0] for k in keys_load if k[1] > max_load]
+    if shuffle is not None:
+        random.seed(shuffle)
+        random.shuffle(keys)
 
     keys = keys[:amount]
 
@@ -38,18 +36,25 @@ def visualize_flows(file_path, aggr=1000, consecutive_zeros=500, amount=20, filt
         flow_series_bytes = torch.zeros(end_time - start_time + 1, dtype=torch.float64)
         flow_series_time = torch.arange(start_time, end_time + 1, dtype=torch.float64)
 
+        if len(flow_series_bytes) < min_length:
+            continue
+
         packet_times = ((flow[:, 0] * aggr) - start_time).long()
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
-        flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
-        flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=consecutive_zeros)
+        plt.plot(flow_series_bytes.tolist(), label=k)
+        plt.legend()
+        plt.show()
 
-        flow_list = [f for f in flow_list if f.shape[0] > 2 * consecutive_zeros]
-
-        for f in flow_list:
-            flow = [x[1] for x in f]
-            plt.plot(flow, label=k)
-            plt.legend()
-            plt.show()
+        # flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
+        # flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=consecutive_zeros)
+        #
+        # flow_list = [f for f in flow_list if f.shape[0] > min_length]
+        #
+        # for f in flow_list:
+        #     flow = [x[1] for x in f]
+        #     plt.plot(flow, label=k)
+        #     plt.legend()
+        #     plt.show()
 
 
 def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, shuffle=True, min_length=100):
@@ -248,7 +253,7 @@ if __name__ == "__main__":
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_full.pkl'  # univ1_pt_n
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full.pkl'  # _test
 
-    # visualize_flows(path, aggr=100)
+    visualize_flows(test_path, aggr=1000, amount=1000)
     # visualize_acf(path, aggr=1000)
-    analysis_gpu(path, save_analysis, aggr=1000)
+    # analysis_gpu(path, save_analysis, aggr=1000)
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
