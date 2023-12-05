@@ -88,7 +88,7 @@ params:
   rev: 1
 
 wandb:
-    project: RLinear-Even-v1-test
+    project: RLinear-Even-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

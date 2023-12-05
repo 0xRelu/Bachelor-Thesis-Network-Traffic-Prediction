@@ -84,7 +84,7 @@ params:
   model: MeanRLinear
 
 wandb:
-  project: Mean-Traffic-Even-v1
+  project: Mean-Even-v1
   group: alr
   # sweep_id: new
   # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

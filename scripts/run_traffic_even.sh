@@ -2,7 +2,7 @@ python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/base
 
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/baseline/config_linear.yaml
 
-# python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/baseline/config_rlinear.yaml
+python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/baseline/config_rlinear.yaml
 
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/baseline/config_nlinear.yaml
 

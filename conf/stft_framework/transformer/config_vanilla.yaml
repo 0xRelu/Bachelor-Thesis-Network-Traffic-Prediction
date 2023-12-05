@@ -68,15 +68,15 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even3_1000.pkl
+  data_path: univ1_pt1_even4_1000.pkl
 
 list:
   seg_len: [ 16, 16, 16, 16,
              32, 32, 32, 32,
              48, 48, 48, 48 ] # , 32, 48]
   hop_len: [ 2, 2, 2, 2,
-             2, 2, 2, 2,
-             2, 2, 2, 2,] # , 4, 6]
+             4, 4, 4, 4,
+             6, 6, 6, 6 ] # , 4, 6]
   pred_len: [ 96, 192, 336, 720,
               96, 192, 336, 720,
               96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
@@ -126,7 +126,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: STFTformer-Vanilla-v1
+    project: STFTformer-Vanilla-v2
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

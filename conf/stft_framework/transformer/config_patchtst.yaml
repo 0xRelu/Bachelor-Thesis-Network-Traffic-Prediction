@@ -75,8 +75,8 @@ list:
              32, 32, 32, 32,
              48, 48, 48, 48 ] # , 32, 48]
   hop_len: [ 2, 2, 2, 2,
-             2, 2, 2, 2,
-             2, 2, 2, 2,] # , 4, 6]
+             4, 4, 4, 4,
+             6, 6, 6, 6 ] # , 4, 6]
   pred_len: [ 96, 192, 336, 720,
               96, 192, 336, 720,
               96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
@@ -137,7 +137,7 @@ params:
   individual: 0
 
 wandb:
-    project: STFTformer-PatchTST-Traffic-v1
+    project: STFTformer-PatchTST-Traffic-v2
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
