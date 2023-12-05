@@ -1,6 +1,6 @@
 from exp.exp_basic import Exp_Basic
 from models import Informer, Transformer, DLinear, Linear, NLinear, PatchTST, \
-    RLinear, STFTformer
+    RLinear, STFTformer, Mean
 from models.ns_models import ns_Transformer
 from utils.tools import adjust_learning_rate
 from utils.metrics import metric
@@ -28,7 +28,8 @@ class Exp_Main(Exp_Basic):
             'RLinear': RLinear,
             'Linear': Linear,
             'PatchTST': PatchTST,
-            'STFTformer': STFTformer
+            'STFTformer': STFTformer,
+            'MeanRLinear': Mean
         }
 
         model = model_dict[self.args.model].Model(self.args).float()

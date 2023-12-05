@@ -2,7 +2,7 @@ import copy
 
 import torch
 import torch.nn as nn
-from models import Transformer, RLinear, Informer, DLinear, NLinear, Linear, PatchTST
+from models import Transformer, RLinear, Informer, DLinear, NLinear, Linear, PatchTST, Mean
 from models.ns_models import ns_Transformer
 from utils.tools import dotdict
 import torch.nn.functional as F
@@ -44,6 +44,7 @@ class Model(nn.Module):
             'RLinear': RLinear,
             'Linear': Linear,
             'PatchTST': PatchTST,
+            'MeanRLinear': Mean
         }
         return model_dict[self.model_name].Model(_configs).float()
 
