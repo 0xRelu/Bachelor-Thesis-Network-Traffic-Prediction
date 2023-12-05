@@ -166,7 +166,7 @@ def _create_split_flow_files():
 def _save_even_gpu(load_path: str, save_path: str, aggr_time: list):
     for j in aggr_time:
         save_path = save_path + f"_{j}.pkl"
-        data_transformer = DatatransformerEvenSimpleGpu(load_path, consecutive_zeros=2500, min_length=3500, aggr=j)
+        data_transformer = DatatransformerEvenSimpleGpu(load_path, consecutive_zeros=500, min_length=1000, aggr=j)
 
         data_transformer.save_python_object(save_path)
         print(f"[x] Finished aggr {j} and saved it in {save_path}")
@@ -177,7 +177,7 @@ def _save_even_gpu(load_path: str, save_path: str, aggr_time: list):
 if __name__ == "__main__":
     print("<<<<<<<<<<<<<<<< Start >>>>>>>>>>>>>>>>")
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_full.pkl'  # univ1_pt_n
-    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_long'
+    save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4'
 
     test_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_n_test.pkl'
     test_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_long_test'

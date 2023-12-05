@@ -69,7 +69,7 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even3_1000.pkl
+  data_path: univ1_pt1_even4_1000.pkl
 
 list:
   pred_len: [ 96, 192, 336, 720 ]
@@ -84,7 +84,7 @@ params:
   model: MeanRLinear
 
 wandb:
-  project: Mean-Traffic-Even-n-v2
+  project: Mean-Traffic-Even-v1
   group: alr
   # sweep_id: new
   # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

@@ -10,7 +10,7 @@ job-name: Vanilla-Transformer-Job-Traffic-Even    # this will be the experiment'
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 2500  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 1200  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 100  # number of iterations per repetition
+iterations: 30  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -68,10 +68,10 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even3_1000.pkl
+  data_path: univ1_pt1_even4_1000.pkl
 
 list:
-  pred_len: [ 192, 336, 720 ] # [ 96, 192, 336, 720 ]
+  pred_len: [ 96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
 
 #####################################################################################################################
 ---
@@ -103,7 +103,7 @@ params:
   do_predict: False # whether to predict unseen future data
 
 wandb:
-    project: Vanilla-Traffic-Even-n-v2
+    project: Vanilla-Even-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
