@@ -135,20 +135,14 @@ class DatatransformerEvenSimpleGpu(DataTransformerBase):
 
         def mapping(x):
             time = datetime.datetime.fromtimestamp(x[0, 0].item())
-            time_in_tensor = [mapping2(time + datetime.timedelta(milliseconds=t_d)) for t_d in range(x.shape[0])]
-            features = x[:, 1:].tolist()
+            time_in_tensor = np.array([mapping2(time + datetime.timedelta(milliseconds=t_d)) for t_d in range(x.shape[0])])
+            features = x[:, 1:].detach().numpy()
 
-            assert len(time_in_tensor) == len(features)
-
-            combined = list(zip(time_in_tensor, features))
-            combined = [list(pair) for pair in combined]
-            return combined
-
-        nFlow_seq = []
+            return [time_in_tensor, features]
 
         counter = 0
-        for x in flow_seq:
-            nFlow_seq.append(mapping(x))
+        for i, x in enumerate(flow_seq):
+            flow_seq[i] = mapping(x)
 
             if counter % 1000 == 0:
                 print(f"Parsed {counter / len(flow_seq)}")

@@ -68,11 +68,11 @@ class Dataset_Traffic_Even(Dataset):
         data = []
 
         for i in range(len(data_raw)):
-            if len(data_raw[i]) < self.seq_len + self.pred_len:
+            if len(data_raw[i][0]) < self.seq_len + self.pred_len:
                 continue
 
-            data_stamp = np.array(list(map(lambda x: x[0], data_raw[i])))
-            data_bytes_flow = np.array(list(map(lambda x: x[1], data_raw[i]))).reshape(-1, 1)
+            data_stamp = data_raw[i][0]
+            data_bytes_flow = data_raw[i][1].reshape(-1, 1)
 
             if self.transform == 'gaussian':
                 data_bytes_flow = gaussian_filter1d(data_bytes_flow.reshape(-1), sigma=self.smooth_param,
