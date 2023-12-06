@@ -22,7 +22,7 @@ name: DEFAULT   # MUST BE 'DEFAULT'
 # Required: Can also be set in DEFAULT
 path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
-iterations: 50  # number of iterations per repetition
+iterations: 30  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -40,7 +40,7 @@ params:
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
-  seq_stride: 100
+  seq_stride: 30
   transform: None
   smooth_param: None
 
