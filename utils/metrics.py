@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import stats
 from sklearn.preprocessing import StandardScaler
 
 
@@ -18,12 +19,6 @@ def MAE(pred, true):
 
 def MSE(pred, true):
     return np.mean((pred - true) ** 2)
-
-
-def NMSE(pred, true):
-    test = np.mean((pred - true) ** 2, axis=1) / np.var(true, axis=1)
-    test2 = np.sum(test > 1)
-    return np.mean(test)
 
 
 def RMSE(pred, true):
@@ -56,6 +51,29 @@ def HVI(pred, true, interval=10):
     return np.array(error).mean()
 
 
+def pearson(context, pred, true):  # context = [B,L,1]; pred = true = [B,P,1]
+    residual = (pred - true).squeeze(axis=-1)
+    context = context.squeeze(axis=-1)
+    true = true.squeeze(axis=-1)
+    pred = pred.squeeze(axis=-1)
+    prs = 0
+    pts = 0
+
+    for i in range(context.shape[1]):
+        c = context[:, i]
+        for j in range(residual.shape[1]):
+            cr, pr = stats.pearsonr(c, residual[:, j])
+            ct, pt = stats.pearsonr(c, true[:, j])
+
+            if pr < 0.01 and pt < 0.01:
+                prs += cr
+                pts += ct
+
+        print(f"[x] Processing pearson: {i / context.shape[1]}")
+
+    return prs, prs
+
+
 def metric(pred, true):
     mae = MAE(pred, true)
     mse = MSE(pred, true)
@@ -63,6 +81,5 @@ def metric(pred, true):
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
     hvi = HVI(pred, true)
-    nmse = NMSE(pred, true)
 
-    return mae, mse, rmse, mape, mspe, hvi, nmse
+    return mae, mse, rmse, mape, mspe, hvi

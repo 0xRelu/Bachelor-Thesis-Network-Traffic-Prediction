@@ -144,7 +144,6 @@ def filter_flows(file_path, save_path, alpha=0.05, aggr=1000, filter_tcp=True, a
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
 
         flow_series_bytes = flow_series_bytes.numpy()
-
         p = sm.tsa.acf(flow_series_bytes, nlags=min(len(flow_series_bytes), 1000))
         p = np.abs(p).mean()
         auto_mean.append([k, p, len(flow_series_bytes)])

@@ -3,7 +3,7 @@ from models import Informer, Transformer, DLinear, Linear, NLinear, PatchTST, \
     RLinear, STFTformer, Mean
 from models.ns_models import ns_Transformer
 from utils.tools import adjust_learning_rate
-from utils.metrics import metric
+from utils.metrics import metric, pearson
 import torch
 import torch.nn as nn
 from torch.optim import lr_scheduler
@@ -169,6 +169,7 @@ class Exp_Main(Exp_Basic):
             # self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
 
         trues_preds = []
+        contexts = []
         preds = []
         trues = []
 
@@ -183,6 +184,7 @@ class Exp_Main(Exp_Basic):
 
                 outputs, batch_y = self._predict(batch_x, batch_y, batch_x_mark, batch_y_mark)
 
+                context = batch_x.detach().cpu().numpy()
                 outputs = outputs.detach().cpu().numpy()
                 batch_y = batch_y.detach().cpu().numpy()
 
@@ -191,14 +193,11 @@ class Exp_Main(Exp_Basic):
                 pred = outputs  # outputs.detach().cpu().numpy()  # .squeeze()
                 true = batch_y  # batch_y.detach().cpu().numpy()  # .squeeze()
 
+                contexts.append(context)
                 preds.append(pred)
                 trues.append(true)
-                # if i % 20 == 0:
-                #     input = batch_x.detach().cpu().numpy()
-                #     gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
-                #     pd = np.concatenate((input[0, :, -1], pred[0, :, -1]), axis=0)
-                #     visual(gt, pd, os.path.join(folder_path, str(i) + '.pdf'))
 
+        contexts = np.concatenate(contexts, axis=0)
         preds = np.concatenate(preds, axis=0)
         trues = np.concatenate(trues, axis=0)
 
@@ -209,11 +208,12 @@ class Exp_Main(Exp_Basic):
         trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
         print('test shape:', preds.shape, trues.shape)
 
-        mae, mse, rmse, mape, mspe, hvi, nmse = metric(preds, trues)
-        print('mse:{}, mae:{}, rmse:{}, nmse:{}'.format(mse, mae, rmse, nmse))
+        p = pearson(contexts, preds, trues)
+        mae, mse, rmse, mape, mspe, hvi = metric(preds, trues)
+        print('mse:{}, mae:{}, rmse:{}'.format(mse, mae, rmse))
 
         results.update({'test_mse': mse, 'test_mae': mae, 'test_rmse': rmse,
-                        'test_mape': mape, 'test_mspe': mspe, 'hvi': hvi, 'nmse': nmse})
+                        'test_mape': mape, 'test_mspe': mspe, 'hvi': hvi, 'pearson': p})
 
         if inverse_scale:
             preds_inverse = np.stack([test_data.inverse_transform(x) for x in preds])
@@ -222,9 +222,9 @@ class Exp_Main(Exp_Basic):
             preds_inverse = preds_inverse.reshape(-1, preds_inverse.shape[-2], preds_inverse.shape[-1])
             trues_inverse = trues_inverse.reshape(-1, trues_inverse.shape[-2], trues_inverse.shape[-1])
 
-            mae, mse, rmse, mape, mspe, hvi, nmse = metric(preds_inverse, trues_inverse)
+            mae, mse, rmse, mape, mspe, hvi = metric(preds_inverse, trues_inverse)
             results.update({'real_test_mse': mse, 'real_test_mae': mae, 'real_test_rmse': rmse,
-                            'real_test_mape': mape, 'real_test_mspe': mspe, 'real_test_hvi': hvi, 'real_test_nmse': nmse})
+                            'real_test_mape': mape, 'real_test_mspe': mspe, 'real_test_hvi': hvi})
 
             trues_preds = list(zip(trues_inverse, preds_inverse))
 
