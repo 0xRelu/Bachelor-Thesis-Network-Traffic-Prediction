@@ -4,16 +4,20 @@ import pickle
 import random
 
 import numpy as np
+import scipy.stats
 import torch
+import torch.nn.functional as F
 from matplotlib import pyplot as plt
+from scipy import stats
 from statsmodels.graphics.tsaplots import plot_acf
 from statsmodels.tsa.stattools import acf
 from torch import tensor
 from statsmodels.sandbox.stats.runs import runstest_1samp
+import statsmodels.api as sm
 from utils.data_preparation_tools import split_tensor_gpu
 
 
-def visualize_flows(file_path, aggr=1000, consecutive_zeros=3000, min_length=2500, amount=20, filter_tcp=True, shuffle=12):
+def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp=True, shuffle=12):
     with open(file_path, 'rb') as f:
         data_flows = pickle.load(f)
 
@@ -57,7 +61,7 @@ def visualize_flows(file_path, aggr=1000, consecutive_zeros=3000, min_length=250
         #     plt.show()
 
 
-def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, shuffle=True, min_length=100):
+def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, shuffle=True, min_length=None):
     with open(file_path, 'rb') as f:
         data_flows = pickle.load(f)
 
@@ -100,11 +104,59 @@ def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, 
 
         flow_series_bytes = flow_series_bytes.tolist()
 
-        plot_acf(flow_series_bytes, lags=range(1, min(1000, len(flow_series_bytes) - 1)), alpha=0.05, auto_ylims=True, zero=False)
+        plot_acf(flow_series_bytes, lags=range(1, min(1000, len(flow_series_bytes) - 1)), alpha=0.05, auto_ylims=True,
+                 zero=False)
         plt.title("")
         plt.xlabel('Lag')
         plt.ylabel('Autocorrelation Coefficient')
         plt.show()
+
+
+def filter_flows(file_path, save_path, alpha=0.05, aggr=1000, filter_tcp=True, auto=False):
+    with open(file_path, 'rb') as f:
+        data_flows = pickle.load(f)
+
+    keys = list(data_flows.keys())
+
+    if filter_tcp:
+        keys = [k for k in keys if k[0].startswith('TCP')]
+        print(f"[+] Found {len(keys)} flows with filter tcp.")
+
+    counter = 0
+
+    auto_mean = []
+
+    for k in keys:
+        if counter % 1000 == 0:
+            print(f"[+] Processed {counter / len(keys)}.")
+
+        counter += 1
+
+        flow = torch.tensor([x[:2] for x in data_flows[k]], dtype=torch.float64)
+        start_time = int(flow[0, 0] * aggr)  # assumes packets are ordered
+        end_time = int(flow[-1, 0] * aggr) + 1
+        flow_series_bytes = torch.zeros(end_time - start_time + 1, dtype=torch.float64)
+
+        if len(flow_series_bytes) < 1000:
+            continue
+
+        packet_times = ((flow[:, 0] * aggr) - start_time).long()
+        flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
+
+        flow_series_bytes = flow_series_bytes.numpy()
+
+        p = sm.tsa.acf(flow_series_bytes, nlags=min(len(flow_series_bytes), 1000))
+        p = np.abs(p).mean()
+        auto_mean.append([k, p, len(flow_series_bytes)])
+
+    auto_mean = sorted(auto_mean, key=lambda x: abs(x[1]), reverse=True)
+    auto_mean = [x for x in auto_mean if abs(x[1]) >= alpha]
+
+    data_flows = {x[0]: data_flows[x[0]] for x in auto_mean}
+
+    # save results
+    with open(save_path, 'wb') as f:
+        pickle.dump(data_flows, f)
 
 
 def _compare(new_file_path, old_file_path):
@@ -212,8 +264,10 @@ def analysis_gpu(file_path: str, save_path: str, aggr=1000, consecutive_zeros=50
             vtm.append(vtm_)
             b.append((var_ - mean_) / (mean_ + var_))
 
-            a.append((torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) + 1) * vtm_ - torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) - 1)) /
-                     ((torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) + 1) - 2) * vtm_ + torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) - 1)))
+            a.append((torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) + 1) * vtm_ - torch.sqrt(
+                torch.tensor(sub_flow.shape[0], device=device) - 1)) /
+                     ((torch.sqrt(torch.tensor(sub_flow.shape[0], device=device) + 1) - 2) * vtm_ + torch.sqrt(
+                         torch.tensor(sub_flow.shape[0], device=device) - 1)))
             # H, _, _ = calculate_hurst_exponent(sub_flow, device)
 
         if len(flow) < 2:
@@ -253,7 +307,12 @@ if __name__ == "__main__":
     path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_full.pkl'  # univ1_pt_n
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full.pkl'  # _test
 
-    visualize_flows(test_path, aggr=1000, amount=1000)
-    # visualize_acf(path, aggr=1000)
+    filter_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered.pkl'
+
+    # visualize_flows(test_path, aggr=1000, amount=150, min_length=1000)
+    visualize_acf(filter_path, aggr=1000)
     # analysis_gpu(path, save_analysis, aggr=1000)
+
+    # filter_flows(path, filter_path)
+
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

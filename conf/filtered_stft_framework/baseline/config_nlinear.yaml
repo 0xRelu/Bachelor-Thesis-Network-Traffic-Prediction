@@ -4,13 +4,13 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: RLinear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: STFT-NLinear-Job   # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 60  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -20,7 +20,7 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #    #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
 iterations: 30  # number of iterations per repetition
 
@@ -35,7 +35,7 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #    #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
@@ -69,26 +69,37 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
+  data_path: univ1_pt1_even4_filtered_1000.pkl
 
 list:
-  pred_len: [ 96, 192, 336, 720 ]
+  seg_len: [ 16, 16, 16, 16,
+             32, 32, 32, 32,
+             48, 48, 48, 48 ] # , 32, 48]
+  hop_len: [ 2, 2, 2, 2,
+             4, 4, 4, 4,
+             6, 6, 6, 6 ] # , 4, 6]
+  pred_len: [ 96, 192, 336, 720,
+              96, 192, 336, 720,
+              96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
 
-###############################################   RLINEAR   ###############################################
+###############################################   NLINEAR   ###############################################
 ---
-# RLinear Experiment
-name: RLinear-Traffic-Even
+# NLinear Experiment
+name: STFTformer-NLinear
 
 params:
-  model_id: RLinear
-  model: RLinear
-  channel: 1 # number of channels
-  individual: 0
-  dropout: 0.05
-  rev: 1
+  # Basic
+  model_id: STFTformer
+  model: STFTformer
+
+  # Stft
+  # seg_len: 10  # length of stft segments
+  # hop_len: 1  # distanz between stft segments
+  pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
+  model_name: NLinear  # name of the model
 
 wandb:
-    project: RLinear-Even-v1
+    project: STFTformer-Filtered-NLinear-v2
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

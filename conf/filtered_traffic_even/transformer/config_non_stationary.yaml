@@ -1,16 +1,16 @@
 ---
 # Slurm config (optional) -- test if this dies anything or nor
-name: SLURM   # MUST BE "SLURM"
+name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: RLinear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: Non-Stationary-Job-Traffic-Even    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 800  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #    #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
-iterations: 30  # number of iterations per repetition
+iterations: 50  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,12 +35,11 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #    #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
-  #checkpoints: "Not needed for now?"
-  embed: timeF
+  #checkpoints: Not needed for now?
   seq_stride: 100
   transform: None
   smooth_param: None
@@ -53,7 +52,7 @@ params:
   # optimization
   num_workers: 1 # data loader num workers
   batch_size: 128 # batch size of train input data
-  learning_rate: 0.005 # optimizer learning rate
+  learning_rate: 0.001 # optimizer learning rate
   des: test # exp description -- not necessary??
   loss: mse # loss function
   lradj: type3 # adjust learning rate
@@ -63,32 +62,53 @@ params:
   test_flop: 0
 
   # GPU
-  use_gpu: 1 # check
+  use_gpu: 1
   gpu: 0 # test whether this works?
-  use_multi_gpu: 0 # check
+  use_multi_gpu: 0
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
+  data_path: univ1_pt1_even4_filtered_1000.pkl
 
 list:
   pred_len: [ 96, 192, 336, 720 ]
 
-###############################################   RLINEAR   ###############################################
+
+#####################################################################################################################
 ---
-# RLinear Experiment
-name: RLinear-Traffic-Even
+# Vanilla Transformer Experiment
+name: Non-stationary-Traffic-Even
 
 params:
-  model_id: RLinear
-  model: RLinear
-  channel: 1 # number of channels
-  individual: 0
-  dropout: 0.05
-  rev: 1
+  # Basic
+  model_id: Non-Stationary
+  model: Non-Stationary
+
+  # Former specific
+  embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
+  enc_in: 1 # encoder input size
+  dec_in: 1 # decoder input size
+  c_out: 1 # output size
+  d_model: 512 # dimension of model
+  n_heads: 8 # num of heads
+  e_layers: 2 # num of encoder layers
+  d_layers: 1 # num of decoder layers
+  d_ff: 2048 # dimension of fcn
+  moving_avg: 25 # window size of moving average
+  factor: 3 # attn factor
+  distil: 1 # whether to use distilling in encoder, using this argument means not using distilling
+  dropout: 0.05 # dropout
+  embed: fixed # time features encoding, options:[timeF, fixed, learned]
+  activation: gelu # activation
+  output_attention: False # whether to output attention in encoder
+  do_predict: False # whether to predict unseen future data
+
+  # de-stationary projector params
+  p_hidden_dims: [128, 128]
+  p_hidden_layers: 2
 
 wandb:
-    project: RLinear-Even-v1
+    project: Non-Stationary-Even-Filtered-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

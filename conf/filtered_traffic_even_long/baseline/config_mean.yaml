@@ -4,13 +4,13 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: RLinear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: Mean-Job-Traffic-Even    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 130  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #    #
+path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #   #
 repetitions: 1    # number of times one set of parameters is run
-iterations: 30  # number of iterations per repetition
+iterations: 1  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -41,19 +41,19 @@ params:
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: "Not needed for now?"
   embed: timeF
-  seq_stride: 100
+  seq_stride: 300
   transform: None
   smooth_param: None
 
   # Forecasting task
-  seq_len: 336 # input sequence length
-  label_len: 48 # start token length
-  # pred_len: 30 # prediction sequence length
+  # seq_len: 336 # input sequence length
+  # label_len: 48 # start token length
+  pred_len: 96 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
   batch_size: 128 # batch size of train input data
-  learning_rate: 0.005 # optimizer learning rate
+  learning_rate: 0.005 # optimizer learning rate -> Sweep
   des: test # exp description -- not necessary??
   loss: mse # loss function
   lradj: type3 # adjust learning rate
@@ -69,26 +69,23 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
+  data_path: univ1_pt1_even4_filtered_long_1000.pkl
 
 list:
-  pred_len: [ 96, 192, 336, 720 ]
+  seq_len: [ 600, 1200, 1800, 2400 ]
+  label_len: [ 100, 200, 300, 400 ]
 
-###############################################   RLINEAR   ###############################################
+###############################################   LINEAR   ###############################################
 ---
-# RLinear Experiment
-name: RLinear-Traffic-Even
+# Linear Experiment
+name: Mean-Traffic-Even
 
 params:
-  model_id: RLinear
-  model: RLinear
-  channel: 1 # number of channels
-  individual: 0
-  dropout: 0.05
-  rev: 1
+  model_id: MeanRLinear
+  model: MeanRLinear
 
 wandb:
-    project: RLinear-Even-v1
-    group: alr
-    # sweep_id: new
-    # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
+  project: Mean-Even-Long-Filtered-v1
+  group: alr
+  # sweep_id: new
+  # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

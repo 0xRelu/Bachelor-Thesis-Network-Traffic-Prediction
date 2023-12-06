@@ -10,7 +10,7 @@ job-name: RLinear-Job-Traffic-Even    # this will be the experiment's name in sl
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+time: 150  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
@@ -20,7 +20,7 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #    #
+path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results #      #
 repetitions: 1    # number of times one set of parameters is run
 iterations: 30  # number of iterations per repetition
 
@@ -35,20 +35,20 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #    #
+  root_path: C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n # /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #      #
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: "Not needed for now?"
   embed: timeF
-  seq_stride: 100
+  seq_stride: 300
   transform: None
   smooth_param: None
 
   # Forecasting task
-  seq_len: 336 # input sequence length
-  label_len: 48 # start token length
-  # pred_len: 30 # prediction sequence length
+  # seq_len: 336 # input sequence length
+  # label_len: 48 # start token length
+  pred_len: 96 # prediction sequence length
 
   # optimization
   num_workers: 1 # data loader num workers
@@ -69,10 +69,11 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
+  data_path: univ1_pt1_even4_long_filtered_1000.pkl
 
 list:
-  pred_len: [ 96, 192, 336, 720 ]
+  seq_len: [ 600, 1200, 1800, 2400 ]
+  label_len: [ 100, 200, 300, 400 ]
 
 ###############################################   RLINEAR   ###############################################
 ---
@@ -88,7 +89,7 @@ params:
   rev: 1
 
 wandb:
-    project: RLinear-Even-v1
+    project: RLinear-Even-Long-Filtered-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
