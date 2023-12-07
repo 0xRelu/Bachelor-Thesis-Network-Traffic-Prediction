@@ -71,7 +71,7 @@ def pearson(context, pred, true):  # context = [B,L,1]; pred = true = [B,P,1]
 
         print(f"[x] Processing pearson: {i / context.shape[1]}")
 
-    return prs, prs
+    return prs, pts
 
 
 def metric(pred, true):
