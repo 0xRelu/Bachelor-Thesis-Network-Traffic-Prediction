@@ -4,7 +4,7 @@ name: SLURM   # MUST BE "SLURM"
 
 # Required
 partition: gpu_8
-job-name: DLinear-Job-Traffic-Even    # this will be the experiment's name in slurm
+job-name: DLinear-Job-Even-Filtered-Higher    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
