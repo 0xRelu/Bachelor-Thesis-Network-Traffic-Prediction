@@ -165,11 +165,11 @@ def _create_split_flow_files():
 
 def _save_even_gpu(load_path: str, save_path: str, aggr_time: list):
     for j in aggr_time:
-        save_path = save_path + f"_{j}.pkl"
-        data_transformer = DatatransformerEvenSimpleGpu(load_path, consecutive_zeros=2500, min_length=3000, aggr=j)
+        save_path_ = save_path + f"_{j}.pkl"
+        data_transformer = DatatransformerEvenSimpleGpu(load_path, consecutive_zeros=500, min_length=800, aggr=j)
 
-        data_transformer.save_python_object(save_path)
-        print(f"[x] Finished aggr {j} and saved it in {save_path}")
+        data_transformer.save_python_object(save_path_)
+        print(f"[x] Finished aggr {j} and saved it in {save_path_}")
 
     print("<<<<<<<<<<<<<<<< Done Even >>>>>>>>>>>>>>>>")
 
@@ -183,13 +183,13 @@ if __name__ == "__main__":
     test_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_long_test'
 
     filter_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered.pkl'
-    filter_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_long_filtered'
+    filter_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_filtered'
 
-    aggregation_time = [1000]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
+    aggregation_time = [10, 100]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     # _create_split_flow_files()
     # create_test_from_full(path, test_path, 'TCP', 1000, True)
 
-    _save_even_gpu(filter_path, filter_save_path, aggr_time=aggregation_time)
+    _save_even_gpu(path, save_path, aggr_time=aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

@@ -4,14 +4,14 @@ name: SLURM   # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: STFT-PatchTST-Job    # this will be the experiment's name in slurm
+job-name: Non-Stationary-Job-Traffic-Even    # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 800  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
-mem-per-cpu: 60000 # Optional - Cluster specific
+time: 850  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
 
@@ -20,9 +20,9 @@ sbatch_args: # gpus need to be explicitly requested using this
 name: DEFAULT   # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results #
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
 repetitions: 1    # number of times one set of parameters is run
-iterations: 30  # number of iterations per repetition
+iterations: 50  # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
 reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
@@ -35,12 +35,12 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data\UNI1_n  #
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
-  seq_stride: 100
+  seq_stride: 70
   transform: None
   smooth_param: None
 
@@ -68,37 +68,29 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
 
 list:
-  seg_len: [ 48, 48, 48, 48 ] # , 32, 48]
-  hop_len: [ 6, 6, 6, 6 ] # , 4, 6]
-  pred_len: [ 96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
-  enc_in: [ 50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
-  dec_in: [ 50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
-  c_out: [ 50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
+  data_path: [ univ1_pt1_even4_100.pkl, univ1_pt1_even4_100.pkl, univ1_pt1_even4_100.pkl, univ1_pt1_even4_100.pkl,
+               univ1_pt1_even4_10.pkl, univ1_pt1_even4_10.pkl, univ1_pt1_even4_10.pkl, univ1_pt1_even4_10.pkl ]
+  pred_len: [ 96, 192, 336, 720,
+              96, 192, 336, 720 ]
+
 
 #####################################################################################################################
 ---
 # Vanilla Transformer Experiment
-name: STFTformer-PatchTST
+name: Non-stationary-Traffic-Even
 
 params:
   # Basic
-  model_id: STFTformer
-  model: STFTformer
-
-  # Stft
-  # seg_len: 10  # length of stft segments
-  # hop_len: 1  # distanz between stft segments
-  pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
-  model_name: PatchTST  # name of the model
+  model_id: Non-Stationary
+  model: Non-Stationary
 
   # Former specific
   embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
-  # enc_in: 1 # encoder input size
-  # dec_in: 1 # decoder input size
-  # c_out: 1 # output size
+  enc_in: 1 # encoder input size
+  dec_in: 1 # decoder input size
+  c_out: 1 # output size
   d_model: 512 # dimension of model
   n_heads: 8 # num of heads
   e_layers: 2 # num of encoder layers
@@ -112,20 +104,13 @@ params:
   activation: gelu # activation
   output_attention: False # whether to output attention in encoder
   do_predict: False # whether to predict unseen future data
-  fc_dropout: 0.05
-  head_dropout: 0.0
-  patch_len: 16
-  stride: 8
-  padding_patch: 'end'
-  revin: 1
-  affine: 0
-  subtract_last: 0
-  decomposition: 0
-  kernel_size: 25
-  individual: 0
+
+  # de-stationary projector params
+  p_hidden_dims: [128, 128]
+  p_hidden_layers: 2
 
 wandb:
-    project: STFTformer-PatchTST-Traffic-v2
+    project: Non-Stationary-Even-Higher-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

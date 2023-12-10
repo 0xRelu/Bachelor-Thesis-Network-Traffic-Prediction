@@ -1,0 +1,91 @@
+---
+# Slurm config (optional) -- test if this dies anything or nor
+name: SLURM   # MUST BE "SLURM"
+
+# Required
+partition: gpu_8
+job-name: NLinear-Job-Traffic-Even    # this will be the experiment's name in slurm
+
+# Required - Cluster Specific
+num_parallel_jobs: 50
+ntasks: 1 # leave that like it is
+cpus-per-task: 2
+time: 120  # Runtime in Wallclock Time. Can be int or str in form "HH:MM:SS"
+mem-per-cpu: 24000 # Optional - Cluster specific
+sbatch_args: # gpus need to be explicitly requested using this
+  gres=gpu:1: "" # and this
+
+---
+# DEFAULT parameters (Optional)
+name: DEFAULT   # MUST BE 'DEFAULT'
+
+# Required: Can also be set in DEFAULT
+path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
+repetitions: 1    # number of times one set of parameters is run
+iterations: 30  # number of iterations per repetition
+
+# Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
+reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
+reps_in_parallel: 1 # number of repetitions in each job that are executed in parallel. defaults to 1.
+
+# Implementation default parameters
+# Will be overwritten by named experiments.
+params:
+  # Basic
+  is_training: 1
+
+  # Data loader
+  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
+  features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
+  target: bytes # target feature in S or MS task
+  freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
+  #checkpoints: "Not needed for now?"
+  embed: timeF
+  seq_stride: 70
+  transform: None
+  smooth_param: None
+
+  # Forecasting task
+  seq_len: 336 # input sequence length
+  label_len: 48 # start token length
+  # pred_len: 30 # prediction sequence length
+
+  # optimization
+  num_workers: 1 # data loader num workers
+  batch_size: 128 # batch size of train input data
+  learning_rate: 0.005 # optimizer learning rate
+  des: test # exp description -- not necessary??
+  loss: mse # loss function
+  lradj: type3 # adjust learning rate
+  pct_start: 0.3 # pct_start
+  use_amp: 0
+  patience: 100
+  test_flop: 0
+
+  # GPU
+  use_gpu: 1 # check
+  gpu: 0 # test whether this works?
+  use_multi_gpu: 0 # check
+
+  # data
+  data: Traffic_Even
+
+list:
+  data_path: [ univ1_pt1_even4_100.pkl, univ1_pt1_even4_100.pkl, univ1_pt1_even4_100.pkl, univ1_pt1_even4_100.pkl ]
+  pred_len: [ 96, 192, 336, 720 ]
+
+
+###############################################   NLINEAR   ###############################################
+---
+# NLinear Experiment
+name: NLinear-Traffic-Even
+
+params:
+  model_id: NLinear
+  model: NLinear
+
+wandb:
+    project: NLinear-Even-Higher-v1
+    group: alr
+    # sweep_id: new
+    # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate

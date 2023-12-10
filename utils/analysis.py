@@ -31,9 +31,13 @@ def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp
         random.seed(shuffle)
         random.shuffle(keys)
 
-    keys = keys[:amount]
+    counter = 0
+    i = 0
 
-    for k in keys:
+    while counter < amount:
+        k = keys[i]
+        i += 1
+
         flow = torch.tensor([x[:2] for x in data_flows[k]], dtype=torch.float64)
         start_time = int(flow[0, 0] * aggr)  # assumes packets are ordered
         end_time = int(flow[-1, 0] * aggr) + 1
@@ -43,6 +47,7 @@ def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp
         if len(flow_series_bytes) < min_length:
             continue
 
+        counter += 1
         packet_times = ((flow[:, 0] * aggr) - start_time).long()
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
         plt.plot(flow_series_bytes.tolist(), label=k)
@@ -59,6 +64,60 @@ def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp
         #     plt.plot(flow, label=k)
         #     plt.legend()
         #     plt.show()
+
+
+def visualize_flows_stft(file_path, aggr=1000, consecutive_zeros=500, min_length=1000, amount=-1, filter_tcp=True, shuffle=12):
+    with open(file_path, 'rb') as f:
+        data_flows = pickle.load(f)
+
+    keys = list(data_flows.keys())
+
+    if filter_tcp:
+        keys = [k for k in keys if k[0].startswith('TCP')]
+        print(f"[+] Found {len(keys)} flows with filter tcp.")
+
+    if shuffle is not None:
+        random.seed(shuffle)
+        random.shuffle(keys)
+
+    keys = keys[:amount]
+
+    for k in keys:
+        flow = torch.tensor([x[:2] for x in data_flows[k]], dtype=torch.float64)
+        start_time = int(flow[0, 0] * aggr)  # assumes packets are ordered
+        end_time = int(flow[-1, 0] * aggr) + 1
+        flow_series_bytes = torch.zeros(end_time - start_time + 1, dtype=torch.float64)
+        flow_series_time = torch.arange(start_time, end_time + 1, dtype=torch.float64)
+
+        if len(flow_series_bytes) < min_length:
+            continue
+
+        packet_times = ((flow[:, 0] * aggr) - start_time).long()
+        flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
+        flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
+        flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=consecutive_zeros)
+
+        flow_list = [f for f in flow_list if f.shape[0] > min_length]
+
+        for f in flow_list:
+            f = f[:1000, 1]
+
+            # Plotten
+            plt.plot(f)
+            plt.title('')
+            plt.xlabel('time (ms)')
+            plt.ylabel('load (kbit)')
+            plt.show()
+
+            f = np.abs(np.fft.fft(f.numpy()))
+            fft_result_magnitude = np.abs(f)[:500]
+            frequencies = np.fft.fftfreq(len(f), 1 / 1000)[:500]
+
+            plt.plot(frequencies, fft_result_magnitude)
+            plt.title('')
+            plt.xlabel('amplitude (unit)')
+            plt.ylabel('frequency (Hz)')
+            plt.show()
 
 
 def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, shuffle=True, min_length=None):
@@ -308,9 +367,10 @@ if __name__ == "__main__":
 
     filter_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered.pkl'
 
-    # visualize_flows(test_path, aggr=1000, amount=150, min_length=1000)
-    visualize_acf(filter_path, aggr=1000)
+    visualize_flows(test_path, aggr=100, amount=10, min_length=100)
+    # visualize_acf(filter_path, aggr=1000)
     # analysis_gpu(path, save_analysis, aggr=1000)
+    # visualize_flows_stft(test_path, aggr=1000)
 
     # filter_flows(path, filter_path)
 

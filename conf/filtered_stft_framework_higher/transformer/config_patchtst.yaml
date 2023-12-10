@@ -40,7 +40,7 @@ params:
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
   #checkpoints: Not needed for now?
-  seq_stride: 100
+  seq_stride: 10
   transform: None
   smooth_param: None
 
@@ -68,15 +68,15 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
 
 list:
-  seg_len: [ 48, 48, 48, 48 ] # , 32, 48]
-  hop_len: [ 6, 6, 6, 6 ] # , 4, 6]
-  pred_len: [ 96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
-  enc_in: [ 50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
-  dec_in: [ 50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
-  c_out: [ 50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
+  data_path: [ univ1_pt1_even4_filtered_100.pkl, univ1_pt1_even4_filtered_100.pkl, univ1_pt1_even4_filtered_100.pkl, univ1_pt1_even4_filtered_100.pkl ]
+  pred_len: [ 96, 192, 336, 720 ]
+  seg_len: [ 16, 16, 16, 16 ] # , 32, 48]
+  hop_len: [ 2, 2, 2, 2 ] # , 4, 6]
+  enc_in: [ 18, 18, 18, 18 ] # number of channels = (seg_len // 2) + 1
+  dec_in: [ 18, 18, 18, 18 ] # number of channels = (seg_len // 2) + 1
+  c_out: [ 18, 18, 18, 18 ] # number of channels = (seg_len // 2) + 1
 
 #####################################################################################################################
 ---
@@ -125,7 +125,7 @@ params:
   individual: 0
 
 wandb:
-    project: STFTformer-PatchTST-Traffic-v2
+    project: STFTformer-Filtered-Higher-PatchTST-Traffic-v1
     group: alr
     # sweep_id: new
     # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
