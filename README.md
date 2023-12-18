@@ -1,3 +1,4 @@
+
 This is the codebase for the paper:
     - https://github.com/thuml/Autoformer (Vanilla Transformer, Informer, and general structures)
     - https://github.com/PatchTST/PatchTST (PatchTST)
@@ -5,6 +6,7 @@ This is the codebase for the paper:
     - https://github.com/cure-lab/LTSF-Linear (DLinear and NLinear)
     - https://github.com/plumprc/RTSF (RLinear)
 
+---
 
 # Run application
 1. When data not prepered: run /data_provider/DataPerperation.py -> main 
