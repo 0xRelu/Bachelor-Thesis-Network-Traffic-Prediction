@@ -1,11 +1,11 @@
 
 # This is the codebase for the paper:
 Parts of the code were taken from the following repositories:
-    - https://github.com/thuml/Autoformer (Vanilla Transformer, Informer, and general structures)
-    - https://github.com/PatchTST/PatchTST (PatchTST)
-    - https://github.com/thuml/Nonstationary_Transformers (Non-Stationary Transformer)
-    - https://github.com/cure-lab/LTSF-Linear (DLinear and NLinear)
-    - https://github.com/plumprc/RTSF (RLinear)
+- https://github.com/thuml/Autoformer (Vanilla Transformer, Informer, and general structures)
+- https://github.com/PatchTST/PatchTST (PatchTST)
+- https://github.com/thuml/Nonstationary_Transformers (Non-Stationary Transformer)
+- https://github.com/cure-lab/LTSF-Linear (DLinear and NLinear)
+- https://github.com/plumprc/RTSF (RLinear)
 
 ---
 
