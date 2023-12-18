@@ -11,8 +11,6 @@ from utils.tools import dotdict
 
 
 def plot_batches(batch_x: np.ndarray):
-    x = list(range(batch_x.shape[1]))  # assume 3 dims
-
     for y in range(batch_x.shape[0]):
         plt.plot(batch_x[y], label=y)
         plt.legend()
@@ -39,12 +37,12 @@ if __name__ == "__main__":
     print("Start")
 
     cw_config = {
-        'data': 'Traffic_Even_Stft',
+        'data': 'Traffic_Even',
         'batch_size': 128,
         'freq': "h",
         'root_path': "C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n",
-        'data_path': "univ1_pt1_even3_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
-        'seq_len': 200,
+        'data_path': "univ1_pt1_even4_1000.pkl",  # univ1_pt1_even_336_48_12_1000.pkl
+        'seq_len': 336,
         'label_len': 100,
         'pred_len': 96,
         'features': "M",
@@ -52,19 +50,43 @@ if __name__ == "__main__":
         'num_workers': 1,
         'embed': 'timeF',
         'transform': None,
-        'smooth_param': '(100, 90)',  # 12
-        'stride': 10
+        # 'smooth_param': '(100, 90)',  # 12
+        'seq_stride': 100
     }
 
     config = dotdict(cw_config)
 
-    train_data, train_loader = data_provider(config, flag='train')  # , collate_fn=padded_collate_fn)
+    train_data, train_loader = data_provider(config, flag='test')  # , collate_fn=padded_collate_fn)
     print("Length: ", len(train_data))
 
+    counter = 0
+
     for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
-        #if i > 5:
-        #    plot_stft(batch_x[10:30], train_data.f[10:30], train_data.index_y[10:30])
-        #    sys.exit(0)
+        for j, seq in enumerate(batch_x):
+            seq = train_data.inverse_transform(seq)
+            pred = train_data.inverse_transform(batch_y[j])
+
+            non_zero_count = np.count_nonzero(seq)
+            percentage_non_zero = non_zero_count / seq.shape[0]
+
+            if percentage_non_zero >= 0.5:
+                counter += 1
+                plt.plot(seq, label=counter)
+                plt.legend()
+                plt.show()
+
+                print([seq.squeeze().tolist(), pred.squeeze().tolist()])
+
+                plt.plot(pred, label=counter)
+                plt.legend()
+                plt.show()
+
+            if counter > 10:
+                break
+
+        if counter > 10:
+            break
+
         if i % 100 == 0:
             print(f"\tTrain {i / len(train_loader)}")
 

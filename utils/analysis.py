@@ -2,6 +2,7 @@ import datetime
 import os
 import pickle
 import random
+import sys
 
 import numpy as np
 import scipy.stats
@@ -17,7 +18,53 @@ import statsmodels.api as sm
 from utils.data_preparation_tools import split_tensor_gpu
 
 
-def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp=True, shuffle=12):
+def visualize_test():
+    p = np.array([25, 25, 50, 0, 25, 0, 0, 0, 0, 0, 0,
+                  50, 25, 25, 0, 75, 0, 25, 0, 75, 0, 0, 0, 0, 0,
+                  50, 0, 50, 0, 50, 0, 50, 25, 25, 0, 0, 0, 0, 0, 0,
+                  50, 25, 25, 0, 75, 0, 25, 0, 75, 0, 0, 0, 0, 0,
+                  50, 0, 25, 25, 50, 0, 75, 0, 0, 0, 0, 0, 0, 0, 0,
+                  50, 0, 50, 0, 75, 0, 25, 0, 75, 0, 0, 0, 0, 0, 0, 0,
+                  50, 0, 50, 0, 75, 0, 25, 0, 75, 0, 0, 0, 0, 0, 0, ])
+    t = np.linspace(0, 1, 100)
+
+    print(t.tolist())
+    print(p.tolist())
+
+    plt.plot(t, p)
+    plt.xlabel('time (ms)')
+    plt.show()
+
+    p = np.abs(np.fft.fft(p))
+    print("----")
+    print(p.tolist())
+
+    plt.plot(p)
+    plt.xlabel('time (ms)')
+    plt.show()
+
+    t, f, p = scipy.signal.stft(p, nperseg=3, noverlap=2)
+    p = p.transpose()
+
+    print("----")
+
+    for i in range(p.shape[1]):
+        k = p[:, i].real
+        print(k.tolist())
+        plt.plot(k)
+        plt.title(str(i) + ' REAL')
+        plt.xlabel('time (ms)')
+        plt.show()
+
+        j = p[:, i].imag
+        print(j.tolist())
+        plt.plot(j)
+        plt.title(str(i) + ' IMAG')
+        plt.xlabel('time (ms)')
+        plt.show()
+
+
+def visualize_flows(file_path, aggr=1000, min_length=2500, skip=0, amount=20, filter_tcp=True, shuffle=12):
     with open(file_path, 'rb') as f:
         data_flows = pickle.load(f)
 
@@ -30,6 +77,8 @@ def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp
     if shuffle is not None:
         random.seed(shuffle)
         random.shuffle(keys)
+
+    keys = keys[skip:]
 
     counter = 0
     i = 0
@@ -66,7 +115,8 @@ def visualize_flows(file_path, aggr=1000, min_length=2500, amount=20, filter_tcp
         #     plt.show()
 
 
-def visualize_flows_stft(file_path, aggr=1000, consecutive_zeros=500, min_length=1000, amount=-1, filter_tcp=True, shuffle=12):
+def visualize_flows_stft(file_path, aggr=1000, consecutive_zeros=500, min_length=1000, amount=-1, filter_tcp=True,
+                         shuffle=12):
     with open(file_path, 'rb') as f:
         data_flows = pickle.load(f)
 
@@ -94,30 +144,52 @@ def visualize_flows_stft(file_path, aggr=1000, consecutive_zeros=500, min_length
 
         packet_times = ((flow[:, 0] * aggr) - start_time).long()
         flow_series_bytes.index_add_(0, packet_times, flow[:, 1])
-        flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
-        flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=consecutive_zeros)
+        # flow_series_bytes = torch.stack((flow_series_time / aggr, flow_series_bytes), dim=1)
 
-        flow_list = [f for f in flow_list if f.shape[0] > min_length]
+        non_zero = torch.count_nonzero(flow_series_bytes)
 
-        for f in flow_list:
-            f = f[:1000, 1]
+        if non_zero < len(flow_series_bytes) * 0.4:
+            continue
 
-            # Plotten
-            plt.plot(f)
+        plt.plot(flow_series_bytes)
+        plt.title('load (bytes)')
+        plt.xlabel('time (ms)')
+        plt.show()
+
+        f = torch.stft(flow_series_bytes, n_fft=16, hop_length=2, center=False, pad_mode="reflect", normalized=True,
+                       return_complex=True, onesided=True)
+
+        f = f.permute(1, 0)
+
+        for i in range(f.shape[1]):
+            plt.plot(f[:, i])
             plt.title('')
             plt.xlabel('time (ms)')
-            plt.ylabel('load (kbit)')
             plt.show()
 
-            f = np.abs(np.fft.fft(f.numpy()))
-            fft_result_magnitude = np.abs(f)[:500]
-            frequencies = np.fft.fftfreq(len(f), 1 / 1000)[:500]
-
-            plt.plot(frequencies, fft_result_magnitude)
-            plt.title('')
-            plt.xlabel('amplitude (unit)')
-            plt.ylabel('frequency (Hz)')
-            plt.show()
+        # flow_list = split_tensor_gpu(flow_series_bytes, consecutive_zeros=consecutive_zeros)
+        #
+        # flow_list = [f for f in flow_list if f.shape[0] > min_length]
+        #
+        # for f in flow_list:
+        #     f = f[:1000, 1]
+        #
+        #     # Plotten
+        #     plt.plot(f)
+        #     plt.title('')
+        #     plt.xlabel('time (ms)')
+        #     plt.ylabel('load (kbit)')
+        #     plt.show()
+        #
+        #     f = np.abs(np.fft.fft(f.numpy()))
+        #     fft_result_magnitude = np.abs(f)[:500]
+        #     frequencies = np.fft.fftfreq(len(f), 1 / 1000)[:500]
+        #
+        #     plt.plot(frequencies, fft_result_magnitude)
+        #     plt.title('')
+        #     plt.xlabel('amplitude (unit)')
+        #     plt.ylabel('frequency (Hz)')
+        #     plt.show()
 
 
 def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, shuffle=True, min_length=None):
@@ -165,10 +237,23 @@ def visualize_acf(file_path, aggr=1000, amount=20, nlags=1000, filter_tcp=True, 
 
         plot_acf(flow_series_bytes, lags=range(1, min(1000, len(flow_series_bytes) - 1)), alpha=0.05, auto_ylims=True,
                  zero=False)
+        acf_v = acf(flow_series_bytes, nlags=min(1000, len(flow_series_bytes) - 1))
+        print(acf_v.tolist())
         plt.title("")
         plt.xlabel('Lag')
         plt.ylabel('Autocorrelation Coefficient')
         plt.show()
+
+
+def count_packets(file_path):
+    with open(file_path, 'rb') as f:
+        data_flows = pickle.load(f)
+
+    counter = 0
+    for k, v in data_flows.items():
+        counter += len(v)
+
+    print(counter)
 
 
 def filter_flows(file_path, save_path, alpha=0.05, aggr=1000, filter_tcp=True, auto=False):
@@ -366,12 +451,15 @@ if __name__ == "__main__":
     save_analysis = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\ANALYSIS\\analysis_full.pkl'  # _test
 
     filter_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered.pkl'
+    filter_path_100 = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered_100.pkl'
 
-    visualize_flows(test_path, aggr=100, amount=10, min_length=100)
+    # count_packets(path)
+
+    # visualize_flows(test_path, aggr=1000, skip=30, amount=20, min_length=500)
     # visualize_acf(filter_path, aggr=1000)
     # analysis_gpu(path, save_analysis, aggr=1000)
-    # visualize_flows_stft(test_path, aggr=1000)
-
-    # filter_flows(path, filter_path)
+    # visualize_flows_stft(filter_path, aggr=10, min_length=10)
+    visualize_test()
+    # filter_flows(path, filter_path_100, aggr=100, alpha=0.02)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")

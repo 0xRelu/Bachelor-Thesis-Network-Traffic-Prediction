@@ -185,11 +185,13 @@ if __name__ == "__main__":
     filter_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered.pkl'
     filter_save_path = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt1_even4_filtered'
 
-    aggregation_time = [10, 100]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
+    filter_path_100 = 'C:\\Users\\nicol\\PycharmProjects\\BA_LTSF_w_Transformer\\data\\UNI1_n\\univ1_pt_filtered_100.pkl'
+
+    aggregation_time = [100]  # 1000 = Milliseconds, 100 = 10xMilliseconds, 10 = 100xMilliseconds, 1 = Seconds
 
     # _create_split_flow_files()
     # create_test_from_full(path, test_path, 'TCP', 1000, True)
 
-    _save_even_gpu(path, save_path, aggr_time=aggregation_time)
+    _save_even_gpu(filter_path_100, filter_save_path, aggr_time=aggregation_time)
 
     print("<<<<<<<<<<<<<<<< Done >>>>>>>>>>>>>>>>")
