@@ -37,7 +37,7 @@ python LtsfExperiment.py -o <path/to/config.yaml>
 
 ## Potential Errors
 
-- Wrong Paths in (be careful with / and \) config or data_preparer
+- Wrong Paths in (be careful with / and \\) config or data_preparer
 - Wandb has to be configured
 
 ## Acknowledgemends:
