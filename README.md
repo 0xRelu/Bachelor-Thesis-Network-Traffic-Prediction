@@ -9,10 +9,13 @@ This is the origin Pytorch implementation of the following paper:
 
 ## Content
 
-:triangular_flag_on_post: Preprocessing of network traffic
-:triangular_flag_on_post: STFT_Framework model
-:triangular_flag_on_post: Slurm configuration to run different models on the dataset
-:triangular_flag_on_post: Includes Nonstationary_Transformers, Informer, PatchTST, NLinear, DLinear, RLinear, Linear
+:triangular_flag_on_post: Preprocessing of network traffic.
+
+:triangular_flag_on_post: STFT_Framework model.
+
+:triangular_flag_on_post: Slurm configuration to run different models on the dataset.
+
+:triangular_flag_on_post: Includes Nonstationary_Transformers, Informer, PatchTST, NLinear, DLinear, RLinear, Linear.
 
 ## Data
 
