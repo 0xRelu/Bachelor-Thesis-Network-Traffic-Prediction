@@ -1,31 +1,31 @@
 ---
 # Slurm config (optional) -- test if this dies anything or nor
-name: SLURM   # MUST BE SLURM
+name: SLURM # MUST BE SLURM
 
 # Required
 partition: gpu_8
-job-name: STFT-Non-Stationary-Job    # this will be the experiment's name in slurm
+job-name: STFT-Non-Stationary-Job # this will be the experiment's name in slurm
 
 # Required - Cluster Specific
 num_parallel_jobs: 50
 ntasks: 1 # leave that like it is
 cpus-per-task: 2
-time: 800  # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
+time: 800 # Runtime in Wallclock Time. Can be int or str in form HH:MM:SS
 mem-per-cpu: 24000 # Optional - Cluster specific
 sbatch_args: # gpus need to be explicitly requested using this
   gres=gpu:1: "" # and this
 
 ---
 # DEFAULT parameters (Optional)
-name: DEFAULT   # MUST BE 'DEFAULT'
+name: DEFAULT # MUST BE 'DEFAULT'
 
 # Required: Can also be set in DEFAULT
-path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/results # location to save results in  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\results
-repetitions: 1    # number of times one set of parameters is run
-iterations: 30  # number of iterations per repetition
+path: results
+repetitions: 1 # number of times one set of parameters is run
+iterations: 51 # number of iterations per repetition
 
 # Refer to Chapter 9 of the Docs for more info - can be set in DEFAULT
-reps_per_job: 1    # number of repetitions in each job. useful for paralellization. defaults to 1.
+reps_per_job: 1 # number of repetitions in each job. useful for paralellization. defaults to 1.
 reps_in_parallel: 1 # number of repetitions in each job that are executed in parallel. defaults to 1.
 
 # Implementation default parameters
@@ -35,7 +35,7 @@ params:
   is_training: 1
 
   # Data loader
-  root_path: /home/kit/anthropomatik/km8809/BA/BA_LTSF_w_Transformer/data/UNI1_n #  #C:\Users\nicol\PycharmProjects\BA_LTSF_w_Transformer\data
+  root_path: data
   features: M # forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate
   target: bytes # target feature in S or MS task
   freq: h # freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h
@@ -68,27 +68,15 @@ params:
 
   # data
   data: Traffic_Even
-  data_path: univ1_pt1_even4_1000.pkl
+  data_path: processed_data.pkl
 
 list:
-  seg_len: [ 16, 16, 16, 16,
-             32, 32, 32, 32,
-             48, 48, 48, 48 ] # , 32, 48]
-  hop_len: [ 2, 2, 2, 2,
-             4, 4, 4, 4,
-             6, 6, 6, 6 ] # , 4, 6]
-  pred_len: [ 96, 192, 336, 720,
-              96, 192, 336, 720,
-              96, 192, 336, 720 ] # [ 96, 192, 336, 720 ]
-  enc_in: [ 18, 18, 18, 18,
-            34, 34, 34, 34,
-            50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
-  dec_in: [ 18, 18, 18, 18,
-            34, 34, 34, 34,
-            50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
-  c_out: [ 18, 18, 18, 18,
-            34, 34, 34, 34,
-            50, 50, 50, 50 ] # number of channels = (seg_len // 2) + 1
+  seg_len: [16, 16, 16, 16, 32, 32, 32, 32, 48, 48, 48, 48] # , 32, 48]
+  hop_len: [2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6] # , 4, 6]
+  pred_len: [96, 192, 336, 720, 96, 192, 336, 720, 96, 192, 336, 720] # [ 96, 192, 336, 720 ]
+  enc_in: [18, 18, 18, 18, 34, 34, 34, 34, 50, 50, 50, 50] # number of channels = (seg_len // 2) + 1
+  dec_in: [18, 18, 18, 18, 34, 34, 34, 34, 50, 50, 50, 50] # number of channels = (seg_len // 2) + 1
+  c_out: [18, 18, 18, 18, 34, 34, 34, 34, 50, 50, 50, 50] # number of channels = (seg_len // 2) + 1
 
 #####################################################################################################################
 ---
@@ -103,8 +91,8 @@ params:
   # Stft
   # seg_len: 10  # length of stft segments
   # hop_len: 1  # distanz between stft segments
-  pad: 0  # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
-  model_name: Non-Stationary  # name of the model
+  pad: 0 # if 1: Pad prediction vector to get to pred_len size, if 0: Does not pad with zeros but requires that (seq_len - seg_len) % overlap == 0
+  model_name: Non-Stationary # name of the model
 
   # Former specific
   embed_type: 5 # 0: default 1: value embedding + temporal embedding + positional embedding 2: value embedding + temporal embedding 3: value embedding + positional embedding 4: value embedding 5: value embedding + microseconds temporal embedding
@@ -130,7 +118,8 @@ params:
   p_hidden_layers: 2
 
 wandb:
-    project: STFTformer-Non-Stationary-v2
-    group: alr
-    # sweep_id: new
-    # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
+  project: STFTformer-Non-Stationary-v2
+  group: alr
+  # sweep_id: new
+  # hp_combinations_per_agent: 3 # number of trials of hyperparameter combinations. After that the job will terminate
+
