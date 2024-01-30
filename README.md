@@ -50,4 +50,4 @@ Parts of the code were taken from the following repositories:
 - https://github.com/cure-lab/LTSF-Linear (DLinear and NLinear)
 - https://github.com/plumprc/RTSF (RLinear)
 
-Thanks for the computing infrastructure provided by the Scientific computing center [SCC](https://www.scc.kit.edu/).
+Thanks for the computing infrastructure provided by the Scientific Computing Center [(SCC)](https://www.scc.kit.edu/).
