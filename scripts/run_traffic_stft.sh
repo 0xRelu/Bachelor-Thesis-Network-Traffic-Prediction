@@ -13,3 +13,4 @@ python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/stft_framework/tr
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/stft_framework/transformer/config_non_stationary.yaml
 
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/stft_framework/transformer/config_patchtst.yaml
+

@@ -13,3 +13,4 @@ python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/tran
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/transformer/config_non_stationary.yaml
 
 python LtsfExperiment.py -s -o ~/BA/BA_LTSF_w_Transformer/conf/traffic_even/transformer/config_patchtst.yaml
+
